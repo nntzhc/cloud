@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B站UP主动态监控 - 本地使用专用版本
+B站UP主动态监控 - Python 3.5兼容版本
 基于动态发布时间判断是否发送消息
 """
 
@@ -39,7 +39,7 @@ def handler(environ, start_response):
         status = '500 Internal Server Error'
         response_headers = [('Content-type', 'text/plain; charset=utf-8')]
         start_response(status, response_headers)
-        return [f"Error: {str(e)}".encode('utf-8')]
+        return [("Error: " + str(e)).encode('utf-8')]
 
 def get_up_latest_dynamic(uid=None, up_name=None):
     # 如果没有提供UID，使用默认UID
@@ -48,41 +48,36 @@ def get_up_latest_dynamic(uid=None, up_name=None):
     if not up_name:
         up_name = "牛奶糖好吃"
     
-    # 测试模式 - 设置为False以启用实际推送
-    
-    # 使用全局时间阈值，不再重新设置
-    # TIME_THRESHOLD_MINUTES = 30  # 移除这行，使用全局变量
-    
     # 获取真实cookie值
     real_cookies = "buvid3=7AC36028-D057-284A-14E8-5BB817F3DCEA40753infoc; b_nut=1760541240; __at_once=3401840458030349206"
     
     # 设置请求头
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Referer': f'https://space.bilibili.com/{uid}/dynamic',
+        'Referer': 'https://space.bilibili.com/{}/dynamic'.format(uid),
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         'Cookie': real_cookies
     }
     
     # 尝试polymer API
-    polymer_url = f"https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid={uid}&timezone_offset=-480"
+    polymer_url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid={}&timezone_offset=-480".format(uid)
     
     try:
-        print(f"正在请求polymer API: {polymer_url}")
+        print("正在请求polymer API: {}".format(polymer_url))
         response = requests.get(polymer_url, headers=headers, timeout=10)
-        print(f"polymer API状态码: {response.status_code}")
+        print("polymer API状态码: {}".format(response.status_code))
         
         # 首先尝试直接解析JSON
         try:
             data = response.json()
-            print(f"polymer API直接JSON解析成功")
+            print("polymer API直接JSON解析成功")
         except json.JSONDecodeError as json_error:
-            print(f"polymer API直接JSON解析失败: {json_error}")
+            print("polymer API直接JSON解析失败: {}".format(json_error))
             # 如果直接解析失败，尝试手动解压缩
             content = response.content
-            print(f"响应内容长度: {len(content)} 字节")
-            print(f"响应头: {dict(response.headers)}")
+            print("响应内容长度: {} 字节".format(len(content)))
+            print("响应头: {}".format(dict(response.headers)))
             
             # 尝试gzip解压（简化处理，移除brotli依赖）
             try:
@@ -96,24 +91,24 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                 data = json.loads(content.decode('utf-8'))
                 print("手动解压后JSON解析成功")
             except Exception as e:
-                print(f"手动解压后JSON解析也失败: {e}")
-                return f"polymer API JSON解析失败: {e}"
+                print("手动解压后JSON解析也失败: {}".format(e))
+                return "polymer API JSON解析失败: {}".format(e)
         
         # 检查响应码
         code = data.get('code', -1)
-        print(f"polymer API返回code: {code}")
+        print("polymer API返回code: {}".format(code))
         
         if code == -352:
             print("polymer API返回风控错误code=-352")
             # 尝试获取风控信息
             if 'data' in data and isinstance(data['data'], dict):
                 if 'v_voucher' in data['data']:
-                    print(f"风控信息v_voucher: {data['data']['v_voucher']}")
-            return f"polymer API风控校验失败: code=-352"
+                    print("风控信息v_voucher: {}".format(data['data']['v_voucher']))
+            return "polymer API风控校验失败: code=-352"
         elif code == 0:
             print("polymer API返回成功")
             items = data.get('data', {}).get('items', [])
-            print(f"polymer API获取到 {len(items)} 条动态")
+            print("polymer API获取到 {} 条动态".format(len(items)))
             
             if items:
                 print("=== 详细分析最新动态 ===")
@@ -145,8 +140,8 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                         if desc and isinstance(desc, dict):
                             text_content = desc.get('text', '')
                     
-                    print(f"最新动态: ID={dynamic_id}, 时间={pub_time}, 类型={dynamic_type}, 主要类型={major_type}")
-                    print(f"  文本内容: '{text_content}'")
+                    print("最新动态: ID={}, 时间={}, 类型={}, 主要类型={}".format(dynamic_id, pub_time, dynamic_type, major_type))
+                    print("  文本内容: '{}'".format(text_content))
                     
                     # 获取所有动态类型映射
                     content_type_map = {
@@ -160,9 +155,9 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                         "": "未知类型"
                     }
                     
-                    content_type = content_type_map.get(major_type, f"其他类型({major_type})")
+                    content_type = content_type_map.get(major_type, "其他类型({})".format(major_type))
                     
-                    print(f"*** 找到最新动态！***")
+                    print("*** 找到最新动态！***")
                     target_dynamic = {
                         'id': dynamic_id,
                         'pub_time': pub_time,
@@ -175,39 +170,45 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                     }
                 
                 if target_dynamic:
-                    print(f"目标动态详情:")
-                    print(f"  动态ID: {target_dynamic['id']}")
-                    print(f"  发布时间: {target_dynamic['pub_time']}")
-                    print(f"  时间戳: {target_dynamic['pub_ts']}")
-                    print(f"  动态类型: {target_dynamic['type']}")
-                    print(f"  主要类型: {target_dynamic['major_type']}")
-                    print(f"  文本内容: '{target_dynamic['text_content']}'")
+                    print("目标动态详情:")
+                    print("  动态ID: {}".format(target_dynamic['id']))
+                    print("  发布时间: {}".format(target_dynamic['pub_time']))
+                    print("  时间戳: {}".format(target_dynamic['pub_ts']))
+                    print("  动态类型: {}".format(target_dynamic['type']))
+                    print("  主要类型: {}".format(target_dynamic['major_type']))
+                    print("  文本内容: '{}'".format(target_dynamic['text_content']))
                     
                     # 检查时间是否在30分钟内
                     current_time = int(time.time())
                     time_diff_minutes = (current_time - target_dynamic['pub_ts']) // 60
-                    print(f"  距现在: {time_diff_minutes} 分钟")
+                    print("  距现在: {} 分钟".format(time_diff_minutes))
                     
                     if time_diff_minutes <= TIME_THRESHOLD_MINUTES:
-                        print(f"*** 动态在{TIME_THRESHOLD_MINUTES}分钟内，准备推送 ***")
+                        print("*** 动态在{}分钟内，准备推送 ***".format(TIME_THRESHOLD_MINUTES))
                         
                         # 构建推送内容
-                        content = f"UP主发布了新{target_dynamic['content_type']}\n动态ID: {target_dynamic['id']}\n发布时间: {target_dynamic['pub_time']}\n类型: {target_dynamic['content_type']}\n文本内容: {target_dynamic['text_content'] or '（无文本）'}"
+                        content = "UP主发布了新{}\n动态ID: {}\n发布时间: {}\n类型: {}\n文本内容: {}".format(
+                            target_dynamic['content_type'],
+                            target_dynamic['id'],
+                            target_dynamic['pub_time'],
+                            target_dynamic['content_type'],
+                            target_dynamic['text_content'] or '（无文本）'
+                        )
                         
                         # 屏蔽消息发送功能（测试模式）
                         if TEST_MODE:
-                            print(f"[测试模式] 准备推送内容: {content}")
+                            print("[测试模式] 准备推送内容: {}".format(content))
                             print("[测试模式] 消息发送功能已屏蔽")
-                            return f"测试模式：找到{time_diff_minutes}分钟前的动态(ID: {target_dynamic['id']})，消息发送已屏蔽"
+                            return "测试模式：找到{}分钟前的动态(ID: {})，消息发送已屏蔽".format(time_diff_minutes, target_dynamic['id'])
                         else:
-                            print(f"准备推送内容: {content}")
+                            print("准备推送内容: {}".format(content))
                             # 实际发送通知
                             dynamic_info = {
                                 'dynamic_id': target_dynamic['id'],
-                                'content': target_dynamic['text_content'] or f'UP主发布了新{target_dynamic["content_type"]}',
+                                'content': target_dynamic['text_content'] or 'UP主发布了新{}'.format(target_dynamic["content_type"]),
                                 'content_type': target_dynamic['content_type'],
                                 'timestamp': target_dynamic['pub_ts'],
-                                'url': f"https://t.bilibili.com/{target_dynamic['id']}",
+                                'url': "https://t.bilibili.com/{}".format(target_dynamic['id']),
                                 'pics': [],  # 可以后续添加图片处理
                                 'like': 0,
                                 'reply': 0,
@@ -215,12 +216,12 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                             }
                             success = send_wechat_notification(up_name, dynamic_info)
                             if success:
-                                return f"成功推送{time_diff_minutes}分钟前的动态(ID: {target_dynamic['id']})"
+                                return "成功推送{}分钟前的动态(ID: {})".format(time_diff_minutes, target_dynamic['id'])
                             else:
-                                return f"推送失败：{time_diff_minutes}分钟前的动态(ID: {target_dynamic['id']})"
+                                return "推送失败：{}分钟前的动态(ID: {})".format(time_diff_minutes, target_dynamic['id'])
                     else:
-                        print(f"动态超过{TIME_THRESHOLD_MINUTES}分钟，不推送")
-                        return f"动态超过{TIME_THRESHOLD_MINUTES}分钟，不推送"
+                        print("动态超过{}分钟，不推送".format(TIME_THRESHOLD_MINUTES))
+                        return "动态超过{}分钟，不推送".format(TIME_THRESHOLD_MINUTES)
                 else:
                     print("未找到最新动态")
                     return "未找到最新动态"
@@ -228,31 +229,31 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                 print("polymer API未获取到动态")
                 return "polymer API未获取到动态"
         else:
-            print(f"polymer API返回错误: code={code}")
-            return f"polymer API返回错误: code={code}"
+            print("polymer API返回错误: code={}".format(code))
+            return "polymer API返回错误: code={}".format(code)
             
     except Exception as e:
-        print(f"polymer API请求失败: {e}")
-        return f"polymer API请求失败: {e}"
+        print("polymer API请求失败: {}".format(e))
+        return "polymer API请求失败: {}".format(e)
     
     # 如果polymer API失败，尝试vc API作为备选
     print("尝试vc API作为备选...")
-    vc_url = f"https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid={uid}&need_top=1&platform=web"
+    vc_url = "https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid={}&need_top=1&platform=web".format(uid)
     
     try:
-        print(f"正在请求vc API: {vc_url}")
+        print("正在请求vc API: {}".format(vc_url))
         response = requests.get(vc_url, headers=headers, timeout=10)
-        print(f"vc API状态码: {response.status_code}")
+        print("vc API状态码: {}".format(response.status_code))
         
         # 尝试直接解析JSON
         try:
             data = response.json()
-            print(f"vc API直接JSON解析成功")
+            print("vc API直接JSON解析成功")
         except json.JSONDecodeError as json_error:
-            print(f"vc API直接JSON解析失败: {json_error}")
+            print("vc API直接JSON解析失败: {}".format(json_error))
             # 如果直接解析失败，尝试手动解压缩
             content = response.content
-            print(f"响应内容长度: {len(content)} 字节")
+            print("响应内容长度: {} 字节".format(len(content)))
             
             # 尝试gzip解压（简化处理，移除brotli依赖）
             try:
@@ -266,17 +267,17 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                 data = json.loads(content.decode('utf-8'))
                 print("vc API 手动解压后JSON解析成功")
             except Exception as e:
-                print(f"vc API 手动解压后JSON解析也失败: {e}")
-                return f"vc API JSON解析失败: {e}"
+                print("vc API 手动解压后JSON解析也失败: {}".format(e))
+                return "vc API JSON解析失败: {}".format(e)
         
         # 检查响应码
         code = data.get('code', -1)
-        print(f"vc API返回code: {code}")
+        print("vc API返回code: {}".format(code))
         
         if code == 0:
             print("vc API返回成功")
             cards = data.get('data', {}).get('cards', [])
-            print(f"vc API获取到 {len(cards)} 条动态")
+            print("vc API获取到 {} 条动态".format(len(cards)))
             
             if cards:
                 # 处理最新动态
@@ -315,34 +316,36 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                     'MAJOR_TYPE_NONE': '纯文本动态',
                 }
                 
-                content_type = content_type_map.get(card_type, f'动态({card_type})')
+                content_type = content_type_map.get(card_type, '动态({})'.format(card_type))
                  
-                print(f"vc API最新动态: ID={card_id}, 时间戳={timestamp}, 类型={card_type}({content_type})")
-                print(f"vc API动态内容: {card_content[:100]}...")
+                print("vc API最新动态: ID={}, 时间戳={}, 类型={}({})".format(card_id, timestamp, card_type, content_type))
+                print("vc API动态内容: {}...".format(card_content[:100]))
                 
                 # 检查时间
                 current_time = int(time.time())
                 time_diff_minutes = (current_time - timestamp) // 60
                 
                 if time_diff_minutes <= TIME_THRESHOLD_MINUTES:
-                    print(f"vc API动态在{TIME_THRESHOLD_MINUTES}分钟内，准备推送")
+                    print("vc API动态在{}分钟内，准备推送".format(TIME_THRESHOLD_MINUTES))
                     
-                    content = f"UP主发布了新{content_type}\n动态ID: {card_id}\n发布时间: {time_diff_minutes}分钟前\n类型: {content_type}\n内容: {card_content[:100]}..."
+                    content = "UP主发布了新{}\n动态ID: {}\n发布时间: {}分钟前\n类型: {}\n内容: {}...".format(
+                        content_type, card_id, time_diff_minutes, content_type, card_content[:100]
+                    )
                     
                     # 屏蔽消息发送功能（测试模式）
                     if TEST_MODE:
-                        print(f"[测试模式] 准备推送内容: {content}")
+                        print("[测试模式] 准备推送内容: {}".format(content))
                         print("[测试模式] 消息发送功能已屏蔽")
-                        return f"vc API测试模式：找到{time_diff_minutes}分钟前的动态(ID: {card_id})，消息发送已屏蔽"
+                        return "vc API测试模式：找到{}分钟前的动态(ID: {})，消息发送已屏蔽".format(time_diff_minutes, card_id)
                     else:
-                        print(f"准备推送内容: {content}")
+                        print("准备推送内容: {}".format(content))
                         # 实际发送通知
                         dynamic_info = {
                             'dynamic_id': card_id,
-                            'content': card_content or f'UP主发布了新{content_type}',
+                            'content': card_content or 'UP主发布了新{}'.format(content_type),
                             'content_type': content_type,
                             'timestamp': timestamp,
-                            'url': f"https://t.bilibili.com/{card_id}",
+                            'url': "https://t.bilibili.com/{}".format(card_id),
                             'pics': [],
                             'like': 0,
                             'reply': 0,
@@ -350,22 +353,22 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                         }
                         success = send_wechat_notification(up_name, dynamic_info)
                         if success:
-                            return f"vc API成功推送{time_diff_minutes}分钟前的动态(ID: {card_id})"
+                            return "vc API成功推送{}分钟前的动态(ID: {})".format(time_diff_minutes, card_id)
                         else:
-                            return f"vc API推送失败：{time_diff_minutes}分钟前的动态(ID: {card_id})"
+                            return "vc API推送失败：{}分钟前的动态(ID: {})".format(time_diff_minutes, card_id)
                 else:
-                    print(f"vc API动态超过{TIME_THRESHOLD_MINUTES}分钟，不推送")
-                    return f"vc API动态超过{TIME_THRESHOLD_MINUTES}分钟，不推送"
+                    print("vc API动态超过{}分钟，不推送".format(TIME_THRESHOLD_MINUTES))
+                    return "vc API动态超过{}分钟，不推送".format(TIME_THRESHOLD_MINUTES)
             else:
                 print("vc API未获取到动态")
                 return "vc API未获取到动态"
         else:
-            print(f"vc API返回错误: code={code}")
-            return f"vc API返回错误: code={code}"
+            print("vc API返回错误: code={}".format(code))
+            return "vc API返回错误: code={}".format(code)
     
     except Exception as e:
-        print(f"vc API请求失败: {e}")
-        return f"vc API请求失败: {e}"
+        print("vc API请求失败: {}".format(e))
+        return "vc API请求失败: {}".format(e)
     
     # 如果所有API都失败
     return "所有API尝试均失败，获取动态失败"
@@ -382,18 +385,18 @@ def should_send_notification(dynamic_created_time):
         
         # 检查是否在时间阈值内（30分钟内）
         if time_diff_minutes <= TIME_THRESHOLD_MINUTES:
-            return True, f"动态发布时间符合条件（{time_diff_minutes:.1f}分钟内）"
+            return True, "动态发布时间符合条件（{:.1f}分钟内）".format(time_diff_minutes)
         else:
-            return False, f"动态发布时间过久（{time_diff_minutes:.1f}分钟前，超过{TIME_THRESHOLD_MINUTES}分钟阈值）"
+            return False, "动态发布时间过久（{:.1f}分钟前，超过{}分钟阈值）".format(time_diff_minutes, TIME_THRESHOLD_MINUTES)
             
     except Exception as e:
-        print(f"时间判断出错: {e}")
+        print("时间判断出错: {}".format(e))
         return False, "时间判断出错"
 
 def send_wechat_notification(up_name, dynamic_info):
     """发送微信通知"""
     try:
-        title = f"🔔 {up_name} 发布了新{dynamic_info['content_type']}"
+        title = "🔔 {} 发布了新{}".format(up_name, dynamic_info['content_type'])
         
         # 格式化时间
         pub_time = datetime.fromtimestamp(dynamic_info["timestamp"]).strftime('%Y-%m-%d %H:%M:%S') if dynamic_info["timestamp"] else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -408,53 +411,60 @@ def send_wechat_notification(up_name, dynamic_info):
         pic_info = ""
         if dynamic_info['pics']:
             pic_count = len(dynamic_info['pics'])
-            pic_info = f"📸 包含 {pic_count} 张图片"
+            pic_info = "📸 包含 {} 张图片".format(pic_count)
         
         # 构建HTML内容
-        html_content = f"""
+        html_content = """
 <div style="max-width: 600px; margin: 0 auto; font-family: 'Microsoft YaHei', Arial, sans-serif;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px 12px 0 0; text-align: center; color: white;">
-        <h2 style="margin: 0; font-size: 24px; font-weight: bold;">📝 {up_name} 新{dynamic_info['content_type']}发布</h2>
+        <h2 style="margin: 0; font-size: 24px; font-weight: bold;">📝 {} 新{}发布</h2>
         <p style="margin: 10px 0 0 0; opacity: 0.9;">B站动态监控通知</p>
     </div>
     
     <div style="background: white; padding: 25px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #00a1d6;">
-            <h3 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 18px;">{dynamic_info['content_type']}</h3>
-            <p style="color: #666; margin: 0; line-height: 1.6;">{content_preview}</p>
-            {f'<p style="color: #2196f3; margin: 10px 0 0 0; font-weight: bold;">{pic_info}</p>' if pic_info else ''}
+            <h3 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 18px;">{}</h3>
+            <p style="color: #666; margin: 0; line-height: 1.6;">{}</p>
+            {}
         </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div style="display: flex; align-items: center;">
-                <span style="background-color: #e3f2fd; color: #1976d2; padding: 6px 12px; border-radius: 20px; font-size: 14px; margin-right: 10px;">⏰ {pub_time}</span>
-                <span style="background-color: #f3e5f5; color: #7b1fa2; padding: 6px 12px; border-radius: 20px; font-size: 14px;">🆔 {dynamic_info['dynamic_id']}</span>
+                <span style="background-color: #e3f2fd; color: #1976d2; padding: 6px 12px; border-radius: 20px; font-size: 14px; margin-right: 10px;">⏰ {}</span>
+                <span style="background-color: #f3e5f5; color: #7b1fa2; padding: 6px 12px; border-radius: 20px; font-size: 14px;">🆔 {}</span>
             </div>
-            <a href="{dynamic_url}" style="background: linear-gradient(135deg, #00a1d6, #0088cc); color: white; text-decoration: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; transition: all 0.3s ease;">👉 查看动态</a>
+            <a href="{}" style="background: linear-gradient(135deg, #00a1d6, #0088cc); color: white; text-decoration: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; transition: all 0.3s ease;">👉 查看动态</a>
         </div>
         
         <div style="display: flex; justify-content: space-around; background-color: #fafafa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
             <div style="text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #e91e63;">👍 {dynamic_info['like']:,}</div>
+                <div style="font-size: 20px; font-weight: bold; color: #e91e63;">👍 {:,}</div>
                 <div style="font-size: 12px; color: #666;">点赞</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #2196f3;">💬 {dynamic_info['reply']:,}</div>
+                <div style="font-size: 20px; font-weight: bold; color: #2196f3;">💬 {:,}</div>
                 <div style="font-size: 12px; color: #666;">评论</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 20px; font-weight: bold; color: #4caf50;">🔄 {dynamic_info['forward']:,}</div>
+                <div style="font-size: 20px; font-weight: bold; color: #4caf50;">🔄 {:,}</div>
                 <div style="font-size: 12px; color: #666;">转发</div>
             </div>
         </div>
         
         <div style="border-top: 1px solid #eee; padding-top: 15px; text-align: center;">
-            <p style="color: #999; font-size: 12px; margin: 0;">⏰ 推送时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p style="color: #999; font-size: 12px; margin: 0;">⏰ 推送时间：{}</p>
             <p style="color: #999; font-size: 12px; margin: 5px 0 0 0;">💡 来自B站动态监控系统</p>
         </div>
     </div>
 </div>
-"""
+""".format(
+            up_name, dynamic_info['content_type'],
+            dynamic_info['content_type'], content_preview,
+            '<p style="color: #2196f3; margin: 10px 0 0 0; font-weight: bold;">{}</p>'.format(pic_info) if pic_info else '',
+            pub_time, dynamic_info['dynamic_id'], dynamic_url,
+            dynamic_info['like'], dynamic_info['reply'], dynamic_info['forward'],
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        )
         
         # 发送通知
         data = {
@@ -475,21 +485,21 @@ def send_wechat_notification(up_name, dynamic_info):
             try:
                 result = response.json()
                 if isinstance(result, dict) and result.get("code") == 200:
-                    print(f"✅ 通知发送成功: {up_name}")
+                    print("✅ 通知发送成功: {}".format(up_name))
                     return True
                 else:
                     error_msg = result.get("msg", "发送失败") if isinstance(result, dict) else str(result)
-                    print(f"❌ 通知发送失败: {error_msg}")
+                    print("❌ 通知发送失败: {}".format(error_msg))
                     return False
             except:
-                print(f"❌ 响应解析失败: {response.text}")
+                print("❌ 响应解析失败: {}".format(response.text))
                 return False
         else:
-            print(f"❌ HTTP错误: {response.status_code}")
+            print("❌ HTTP错误: {}".format(response.status_code))
             return False
             
     except Exception as e:
-        print(f"❌ 发送通知异常: {e}")
+        print("❌ 发送通知异常: {}".format(e))
         return False
 
 def is_aliyun_environment():
@@ -499,22 +509,22 @@ def is_aliyun_environment():
 def monitor_bilibili_dynamics():
     """监控B站UP主动态"""
     current_time = datetime.now()
-    print(f"🚀 开始监控B站动态 - {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"⏰ 时间阈值: {TIME_THRESHOLD_MINUTES}分钟内发布的动态才推送")
+    print("🚀 开始监控B站动态 - {}".format(current_time.strftime('%Y-%m-%d %H:%M:%S')))
+    print("⏰ 时间阈值: {}分钟内发布的动态才推送".format(TIME_THRESHOLD_MINUTES))
     print("=" * 60)
     
     new_count = 0
     notified_count = 0
     
     for up in UP_LIST:
-        print(f"\n📱 检查 {up['name']} 的动态...")
+        print("\n📱 检查 {} 的动态...".format(up['name']))
         
         try:
             # 获取UP主最新动态，传入uid和name
             dynamic = get_up_latest_dynamic(uid=up['uid'], up_name=up['name'])
             
             # 解析动态信息
-            print(f"✅ {dynamic}")
+            print("✅ {}".format(dynamic))
             
             # 检查是否找到并成功推送动态
             if "成功推送" in dynamic or ("找到" in dynamic and "分钟前" in dynamic):
@@ -528,10 +538,10 @@ def monitor_bilibili_dynamics():
             time.sleep(2)
             
         except Exception as e:
-            print(f"❌ 检查失败: {e}")
+            print("❌ 检查失败: {}".format(e))
             continue
     
-    print(f"\n✅ 监控完成，共检查 {new_count} 条动态，发送 {notified_count} 条通知")
+    print("\n✅ 监控完成，共检查 {} 条动态，发送 {} 条通知".format(new_count, notified_count))
     return {
         "checked_count": new_count,
         "notified_count": notified_count
@@ -539,8 +549,8 @@ def monitor_bilibili_dynamics():
 
 def handler(event, context):
 
-    print(f"⏰ 当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"⏰ 当前时间: {TIME_THRESHOLD_MINUTES}分钟内发布的动态才推送")
+    print("⏰ 当前时间: {}".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    print("⏰ 当前时间: {}分钟内发布的动态才推送".format(TIME_THRESHOLD_MINUTES))
     
     try:
         # 执行动态监控
@@ -549,7 +559,7 @@ def handler(event, context):
         return_result = {
             "statusCode": 200,
             "body": json.dumps({
-                "message": f"动态监控完成，检查 {result['checked_count']} 条动态，发送 {result['notified_count']} 条通知",
+                "message": "动态监控完成，检查 {} 条动态，发送 {} 条通知".format(result['checked_count'], result['notified_count']),
                 "timestamp": datetime.now().isoformat(),
                 "details": {
                     "monitored_up_count": len(UP_LIST),
@@ -562,12 +572,12 @@ def handler(event, context):
             }, ensure_ascii=False)
         }
         
-        print(f"✅ 函数执行成功")
+        print("✅ 函数执行成功")
         return return_result
         
     except Exception as e:
-        error_msg = f"动态监控执行失败: {str(e)}"
-        print(f"❌ {error_msg}")
+        error_msg = "动态监控执行失败: {}".format(str(e))
+        print("❌ {}".format(error_msg))
         
         return {
             "statusCode": 500,
@@ -581,8 +591,8 @@ def handler(event, context):
 if __name__ == "__main__":
     print("🧪 本地测试模式")
     print("=" * 60)
-    print(f"⏰ 当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"⏰ 时间阈值: {TIME_THRESHOLD_MINUTES}分钟内发布的动态才推送")
+    print("⏰ 当前时间: {}".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    print("⏰ 时间阈值: {}分钟内发布的动态才推送".format(TIME_THRESHOLD_MINUTES))
     
     event = {}
     context = type('Context', (), {'request_id': 'local-test-123'})()
