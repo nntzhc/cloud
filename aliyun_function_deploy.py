@@ -20,7 +20,7 @@ TEST_MODE = False    # 开启测试模式，验证推送功能
 
 # 时间判断配置
 # 时间阈值：动态发布时间在多少分钟内才发送通知（单位：分钟）
-TIME_THRESHOLD_MINUTES = 5  # 正常监控时间阈值
+TIME_THRESHOLD_MINUTES = 1  # 正常监控时间阈值
 
 # 监控的UP主列表
 UP_LIST = [
