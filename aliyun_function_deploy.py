@@ -39,7 +39,8 @@ def handler(environ, start_response):
         status = '500 Internal Server Error'
         response_headers = [('Content-type', 'text/plain; charset=utf-8')]
         start_response(status, response_headers)
-        return [("Error: " + str(e)).encode('utf-8')]
+        error_msg = "Error: " + str(e)
+        return [error_msg.encode('utf-8')]
 
 def get_up_latest_dynamic(uid=None, up_name=None):
     # 如果没有提供UID，使用默认UID
