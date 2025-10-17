@@ -1,0 +1,8 @@
+测试：python3 /home/cloud/aliyun_function_deploy.py
+
+更新脚本：
+rm aliyun_function_deploy.py
+root@instance-opqfcb3p:/home/cloud# git clone git@github.com:nntzhc/cloud.git
+cp ./cloud/aliyun_function_deploy.py ./aliyun_function_deploy.py
+
+查看日志：tail -f /home/cloud/cron_logs.log
