@@ -286,67 +286,121 @@ def get_up_latest_video(uid=None, up_name=None):
         bypass.log_message('ERROR', f"视频搜索API请求失败: {e}")
         return f"视频搜索API请求失败: {e}"
 
-def get_up_latest_dynamic(uid=None, up_name=None):
-    # 如果没有提供UID，使用默认UID
-    if not uid:
-        uid = "22376577"
-    if not up_name:
-        up_name = "牛奶糖好吃"
-    
-    # 获取真实cookie值
-    real_cookies = "buvid3=7AC36028-D057-284A-14E8-5BB817F3DCEA40753infoc; b_nut=1760541240; __at_once=3401840458030349206"
-    
+def get_up_latest_video_info(uid, up_name):
+    """获取最新视频信息（不直接推送，只返回信息）"""
     bypass = APIRestrictionBypass()
     bypass.setup_logger(log_level='INFO', enable_console=True)
     
-    bypass.log_message('INFO', "=== 获取UP主 {} 最新动态 ===".format(up_name))
-    bypass.log_message('INFO', "用户UID: {}".format(uid))
-    
-    # 首先尝试获取最新视频
-    bypass.log_message('INFO', "首先尝试获取最新视频投稿...")
-    video_result = get_up_latest_video(uid, up_name)
-    
-    # 如果视频获取成功且在时间范围内，直接返回
-    if "成功推送" in video_result:
-        return video_result
-    
-    # 如果视频API被频率限制，记录但继续获取动态
-    video_api_limited = False
-    if "频率限制" in video_result or "风控" in video_result:
-        bypass.log_message('WARNING', f"视频API受限: {video_result}，尝试从动态数据获取视频信息...")
-        video_api_limited = True
-    else:
-        bypass.log_message('INFO', "视频检查完成，继续获取动态...")
-    
-    bypass.log_message('INFO', f"视频结果: {video_result}")
-    
-    # 使用新的get_user_dynamics函数获取数据
-    data = get_user_dynamics(uid, real_cookies, use_bypass=True)
-    
-    if not data:
-        bypass.log_message('ERROR', "获取动态失败")
-        return None
-    
-    # 解析polymer API返回的数据
     try:
-        bypass.log_message('INFO', "正在解析polymer API数据...")
+        # 构建搜索视频的URL
+        search_url = f"https://api.bilibili.com/x/space/wbi/arc/search?mid={uid}&ps=1&tid=0&pn=1&order=pubdate&order_avoided=true"
         
-        # 🔍 增强调试：打印完整的API响应结构
-        bypass.log_message('DEBUG', "polymer API完整响应: {}".format(json.dumps(data, ensure_ascii=False, indent=2)[:500]))
+        # 获取真实cookie值
+        real_cookies = "buvid3=7AC36028-D057-284A-14E8-5BB817F3DCEA40753infoc; b_nut=1760541240; __at_once=3401840458030349206"
+        
+        bypass.log_message('INFO', "获取视频信息，URL: {}".format(search_url))
+        
+        # 使用API风控绕过模式
+        result = bypass.make_request_with_bypass(search_url, method='GET', headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': f'https://space.bilibili.com/{uid}/video',
+            'Cookie': real_cookies
+        })
+        
+        if not result or result.get('code') != 0:
+            bypass.log_message('ERROR', "视频API请求失败")
+            return None
+            
+        data = result
+        
+        # 处理API频率限制
+        if data.get('code') == -799:
+            bypass.log_message('WARNING', f"视频搜索API频率限制: {data.get('message', '请求过于频繁')}")
+            return None
+        elif data.get('code') == -352:
+            bypass.log_message('WARNING', f"视频搜索API风控校验失败: {data.get('message', '风控校验失败')}")
+            return None
+        elif data.get('code') == 0:
+            vlist = data.get('data', {}).get('list', {}).get('vlist', [])
+            bypass.log_message('INFO', f"获取到 {len(vlist)} 个视频")
+            
+            if vlist:
+                # 获取最新视频
+                latest_video = vlist[0]
+                
+                title = latest_video.get('title', '')
+                aid = latest_video.get('aid', '')
+                bvid = latest_video.get('bvid', '')
+                created = latest_video.get('created', 0)
+                length = latest_video.get('length', '')
+                pic = latest_video.get('pic', '')
+                description = latest_video.get('description', '')
+                
+                bypass.log_message('INFO', f"最新视频标题: {title}")
+                bypass.log_message('INFO', f"发布时间戳: {created}")
+                
+                # 检查是否为新视频
+                is_new_video = dynamic_storage.is_new_dynamic(up_name, bvid)
+                if not is_new_video:
+                    bypass.log_message('INFO', f"视频已推送过，不重复处理")
+                    return None
+                
+                # 构建视频信息对象
+                video_info = {
+                    'type': 'video',
+                    'id': bvid,
+                    'title': title,
+                    'aid': aid,
+                    'bvid': bvid,
+                    'timestamp': created,
+                    'pub_time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(created)),
+                    'length': length,
+                    'pic': pic,
+                    'description': description,
+                    'url': f"https://www.bilibili.com/video/{bvid}"
+                }
+                
+                bypass.log_message('INFO', "获取到最新视频信息")
+                return video_info
+            else:
+                bypass.log_message('INFO', "未获取到视频列表")
+                return None
+        else:
+            bypass.log_message('WARNING', f"视频搜索API返回错误: {data.get('message', '未知错误')}")
+            return None
+            
+    except Exception as e:
+         bypass.log_message('ERROR', f"获取视频信息失败: {e}")
+         return None
+ 
+def get_up_latest_dynamic_info(uid, up_name):
+    """获取最新动态信息（不直接推送，只返回信息）"""
+    bypass = APIRestrictionBypass()
+    bypass.setup_logger(log_level='INFO', enable_console=True)
+    
+    try:
+        # 获取真实cookie值
+        real_cookies = "buvid3=7AC36028-D057-284A-14E8-5BB817F3DCEA40753infoc; b_nut=1760541240; __at_once=3401840458030349206"
+        
+        # 使用get_user_dynamics函数获取数据
+        data = get_user_dynamics(uid, real_cookies, use_bypass=True)
+        
+        if not data:
+            bypass.log_message('ERROR', "获取动态失败")
+            return None
+        
+        # 解析polymer API返回的数据
+        bypass.log_message('INFO', "正在解析polymer API数据...")
         
         # 检查多种可能的数据结构
         items = []
         if 'data' in data and isinstance(data['data'], dict):
-            # 尝试不同的items路径
             items = data['data'].get('items', [])
             if not items:
-                # 尝试其他可能的路径
                 items = data['data'].get('list', [])
             if not items:
-                # 尝试cards路径（兼容旧格式）
                 items = data['data'].get('cards', [])
         elif 'data' in data and isinstance(data['data'], list):
-            # 如果data本身就是列表
             items = data['data']
         
         # 确保items是列表类型
@@ -355,57 +409,36 @@ def get_up_latest_dynamic(uid=None, up_name=None):
         
         bypass.log_message('INFO', "polymer API获取到 {} 条动态".format(len(items) if items else 0))
         
-        # 如果items为空，尝试其他数据结构
-        if not items and 'data' in data:
-            bypass.log_message('WARNING', "polymer API items为空，尝试其他数据结构...")
-            # 打印data结构以便调试
-            data_content = data.get('data')
-            bypass.log_message('DEBUG', "data结构: {}".format(type(data_content)))
-            if isinstance(data_content, dict):
-                bypass.log_message('DEBUG', "data键值: {}".format(list(data_content.keys()) if data_content else []))
-        
         # 检查响应码
         code = data.get('code', -1)
         bypass.log_message('INFO', "polymer API返回code: {}".format(code))
         
         if code == -352:
             bypass.log_message('WARNING', "polymer API返回风控错误code=-352")
-            # 尝试获取风控信息
-            if 'data' in data and isinstance(data['data'], dict):
-                if 'v_voucher' in data['data']:
-                    bypass.log_message('WARNING', "风控信息v_voucher: {}".format(data['data']['v_voucher']))
             return None
         elif code == 0:
             bypass.log_message('INFO', "polymer API返回成功")
             
             # 如果仍然没有items，尝试更深层的解析
             if not items:
-                bypass.log_message('WARNING', "polymer API返回成功但items为空，尝试备用解析...")
-                # 尝试直接从data中获取可能的动态数据
+                bypass.log_message('WARNING', "polymer API返回成功但items为空")
                 data_content = data.get('data', {})
                 if isinstance(data_content, dict) and data_content:
-                    # 检查是否有其他包含动态数据的字段
                     for key, value in data_content.items():
                         if isinstance(value, list) and value and len(value) > 0:
-                            bypass.log_message('INFO', "发现潜在动态数据在字段 '{}': {} 项".format(key, len(value)))
-                            # 检查第一项是否像动态数据
-                            if isinstance(value[0], dict):
-                                bypass.log_message('DEBUG', "第一项结构: {}".format(list(value[0].keys()) if value[0] else []))
                             items = value
                             break
             
             if items:
                 bypass.log_message('INFO', "=== 详细分析最新动态 ===")
                 
-                # 🔧 修复：获取前两条动态，比较时间戳，选择真正最新的动态
+                # 获取前两条动态，比较时间戳，选择真正最新的动态
                 target_dynamic = None
                 
                 if len(items) >= 2:
-                    # 获取前两条动态进行比较
-                    first_item = items[0]  # 可能是置顶动态
-                    second_item = items[1]  # 可能是真正的最新动态
+                    first_item = items[0]
+                    second_item = items[1]
                     
-                    # 获取两条动态的时间戳
                     first_ts = first_item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
                     second_ts = second_item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
                     
@@ -421,7 +454,6 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                         latest_item = first_item
                         bypass.log_message('INFO', "✅ 选择第一条动态作为最新动态")
                 else:
-                    # 只有一条动态，直接使用
                     latest_item = items[0]
                     bypass.log_message('INFO', "📝 只有一条动态，直接使用")
                 
@@ -441,46 +473,37 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                     if major_info:
                         major_type = major_info.get('type', '')
                     
-                    # 提取文本内容 - 修复版（解决图文动态文字提取问题）
+                    # 提取文本内容
                     text_content = ""
                     
-                    # 🔧 修复1：正确处理desc字段 - 不要使用{}作为默认值
+                    # 处理desc字段
                     desc_info = module_dynamic.get('desc')
                     if desc_info is not None and isinstance(desc_info, dict):
                         desc_text = desc_info.get('text', '')
                         if desc_text and desc_text.strip():
                             text_content = desc_text.strip()
                     
-                    # 第二步：从major字段提取（增强版）
-                    if major_info and isinstance(major_info, dict):
-                        # 2.1 视频内容（archive）- 优先处理视频动态
+                    # 处理major字段
+                    if not text_content.strip() and major_info:
+                        # 视频内容
                         if 'archive' in major_info:
                             archive = major_info['archive']
                             if archive and isinstance(archive, dict):
                                 title = archive.get('title', '')
                                 if title and title.strip():
                                     text_content = title.strip()
-                                    bypass.log_message('INFO', "  从archive提取视频标题: '{}'".format(text_content))
                         
-                        # 2.2 图文内容（draw）- 关键修复区域
+                        # 图文内容
                         if not text_content.strip() and 'draw' in major_info:
                             draw = major_info['draw']
-                            if isinstance(draw, dict):
-                                # 检查draw中的文本内容
+                            if draw and isinstance(draw, dict):
                                 draw_text = draw.get('text', '')
                                 if draw_text and draw_text.strip():
                                     text_content = draw_text.strip()
-                                    bypass.log_message('INFO', "  从draw提取文本: '{}'".format(text_content))
                                 else:
-                                    # 检查图片数量信息
-                                    items = draw.get('items', [])
-                                    if items and isinstance(items, list):
-                                        img_count = len(items)
-                                        if img_count > 0:
-                                            text_content = f"分享了{img_count}张图片"
-                                            bypass.log_message('INFO', "  从draw提取图片数量: '{}'".format(text_content))
+                                    text_content = "分享了图片"
                         
-                        # 2.3 专栏内容（opus）
+                        # 专栏内容
                         if not text_content.strip() and 'opus' in major_info:
                             opus = major_info['opus']
                             if opus and isinstance(opus, dict):
@@ -488,25 +511,21 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                                 summary = opus.get('summary', '')
                                 if title and title.strip():
                                     text_content = title.strip()
-                                    bypass.log_message('INFO', "  从opus提取标题: '{}'".format(text_content))
                                 elif summary and summary.strip():
                                     text_content = summary.strip()
-                                    bypass.log_message('INFO', "  从opus提取摘要: '{}'".format(text_content))
                         
-                        # 2.4 其他major类型的通用处理
+                        # 其他类型
                         if not text_content.strip():
-                            for major_type, major_data in major_info.items():
+                            for major_type_key, major_data in major_info.items():
                                 if major_data and isinstance(major_data, dict):
                                     if 'title' in major_data:
                                         title = major_data['title']
                                         if title and title.strip():
                                             text_content = title.strip()
-                                            bypass.log_message('INFO', "  从{}提取标题: '{}'".format(major_type, text_content))
                                             break
                     
-                    # 第三步：备用方案 - 检查其他可能的字段
+                    # 备用方案
                     if not text_content.strip():
-                        # 检查content字段
                         if 'content' in module_dynamic:
                             content = module_dynamic['content']
                             if content and isinstance(content, dict):
@@ -514,7 +533,6 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                                 if content_text and content_text.strip():
                                     text_content = content_text.strip()
                         
-                        # 检查item字段
                         if not text_content.strip() and 'item' in module_dynamic:
                             item = module_dynamic['item']
                             if item and isinstance(item, dict):
@@ -522,7 +540,7 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                                 if item_text and item_text.strip():
                                     text_content = item_text.strip()
                     
-                    # 第四步：如果仍为空，尝试直接解析card字段（兼容vc API格式）
+                    # 最后尝试card字段
                     if not text_content.strip() and 'card' in latest_item:
                         try:
                             card_data = json.loads(latest_item['card'])
@@ -536,146 +554,187 @@ def get_up_latest_dynamic(uid=None, up_name=None):
                 
                 bypass.log_message('INFO', "最新动态: ID={}, 时间={}".format(dynamic_id, pub_time))
                 bypass.log_message('INFO', "  文本内容: '{}'".format(text_content))
-                bypass.log_message('INFO', "  module_dynamic 数据: {}".format(json.dumps(module_dynamic, ensure_ascii=False) if module_dynamic else "None"))
                 
-                # 动态类型映射（仅用于内部处理，不显示在推送中）
-                content_type_map = {
-                    "MAJOR_TYPE_DRAW": "图片分享",
-                    "MAJOR_TYPE_OPUS": "图文动态", 
-                    "MAJOR_TYPE_ARCHIVE": "视频投稿",
-                    "MAJOR_TYPE_LIVE_RCMD": "直播推荐",
-                    "MAJOR_TYPE_UGC_SEASON": "合集更新",
-                    "MAJOR_TYPE_COURSES_SEASON": "课程更新",
-                    "MAJOR_TYPE_NONE": "纯文本动态",
-                    "": "未知类型"
-                }
+                # 检查是否为新动态
+                is_new_dynamic = dynamic_storage.is_new_dynamic(up_name, dynamic_id)
+                bypass.log_message('INFO', "  动态ID对比结果: {}".format("新动态" if is_new_dynamic else "已存在动态"))
                 
-                content_type = content_type_map.get(major_type, "其他类型({})".format(major_type))
+                if not is_new_dynamic:
+                    bypass.log_message('INFO', "动态已推送过，不重复处理")
+                    return None
                 
-                bypass.log_message('INFO', "*** 找到最新动态！***")
-                target_dynamic = {
+                # 构建动态信息对象
+                dynamic_info = {
+                    'type': 'dynamic',
                     'id': dynamic_id,
                     'pub_time': pub_time,
                     'pub_ts': pub_ts,
-                    'type': dynamic_type,
                     'major_type': major_type,
-                    'content_type': content_type,
                     'text_content': text_content,
                     'raw_item': latest_item
                 }
                 
-                if target_dynamic:
-                    bypass.log_message('INFO', "目标动态详情:")
-                    bypass.log_message('INFO', "  动态ID: {}".format(target_dynamic['id']))
-                    bypass.log_message('INFO', "  发布时间: {}".format(target_dynamic['pub_time']))
-                    bypass.log_message('INFO', "  时间戳: {}".format(target_dynamic['pub_ts']))
-                    bypass.log_message('INFO', "  文本内容: '{}'".format(target_dynamic['text_content']))
-                    
-                    # 使用动态ID对比判断是否为新动态（替代时间判断）
-                    is_new_dynamic = dynamic_storage.is_new_dynamic(uid, target_dynamic['id'])
-                    bypass.log_message('INFO', "  动态ID对比结果: {}".format("新动态" if is_new_dynamic else "已存在动态"))
-                    
-                    if is_new_dynamic:
-                        bypass.log_message('INFO', "*** 发现新动态，准备推送 ***")
-                        
-                        # 特殊处理：如果视频API受限且动态是视频类型，优先推送视频信息
-                        if video_api_limited and target_dynamic['major_type'] == 'MAJOR_TYPE_ARCHIVE':
-                            bypass.log_message('INFO', "视频API受限，但从动态数据中发现视频投稿，准备推送视频信息...")
-                            
-                            # 从archive数据中提取视频信息
-                            archive_info = target_dynamic['raw_item'].get('modules', {}).get('module_dynamic', {}).get('major', {}).get('archive', {})
-                            if archive_info:
-                                video_title = archive_info.get('title', target_dynamic['text_content'])
-                                video_cover = archive_info.get('cover', '')
-                                video_bvid = archive_info.get('bvid', '')
-                                video_url = f"https://www.bilibili.com/video/{video_bvid}" if video_bvid else f"https://t.bilibili.com/{target_dynamic['id']}"
-                                
-                                # 构建视频推送内容
-                                content = f"【{video_title}】\n视频BV号: {video_bvid}\n发布时间: {target_dynamic['pub_time']}\n视频链接: {video_url}"
-                                
-                                # 更新存储的动态ID
-                                dynamic_storage.update_latest_dynamic_id(uid, target_dynamic['id'], datetime.fromtimestamp(target_dynamic['pub_ts']))
-                                
-                                if TEST_MODE:
-                                    bypass.log_message('INFO', f"[测试模式] 准备推送视频(从动态数据): {content}")
-                                    return f"测试模式：找到新视频({video_title})，消息发送已屏蔽"
-                                else:
-                                    # 构建视频信息（模拟视频API格式）
-                                    video_info = {
-                                        'dynamic_id': video_bvid or target_dynamic['id'],
-                                        'content': video_title,
-                                        'content_type': '视频投稿',
-                                        'timestamp': target_dynamic['pub_ts'],
-                                        'url': video_url,
-                                        'pics': [video_cover] if video_cover else [],
-                                        'like': 0,
-                                        'reply': 0,
-                                        'forward': 0,
-                                        'description': '',
-                                        'length': '',
-                                        'aid': '',
-                                        'bvid': video_bvid
-                                    }
-                                    
-                                    success = send_wechat_notification(up_name, video_info)
-                                    if success:
-                                        return f"成功推送新视频(从动态数据): {video_title}"
-                                    else:
-                                        return f"推送失败：新视频(从动态数据): {video_title}"
-                        
-                        # 普通动态推送逻辑
-                        # 构建推送内容 - 仅显示文本内容，不显示动态类型
-                        content = "【{}】\n动态ID: {}\n发布时间: {}".format(
-                            target_dynamic['text_content'] or '新动态',
-                            target_dynamic['id'],
-                            target_dynamic['pub_time']
-                        )
-                        
-                        # 屏蔽消息发送功能（测试模式）
-                        # 更新存储的动态ID
-                        dynamic_storage.update_latest_dynamic_id(uid, target_dynamic['id'], datetime.fromtimestamp(target_dynamic['pub_ts']))
-                        
-                        if TEST_MODE:
-                            bypass.log_message('INFO', "[测试模式] 准备推送内容: {}".format(content))
-                            bypass.log_message('INFO', "[测试模式] 消息发送功能已屏蔽")
-                            return "测试模式：找到新动态(ID: {})，消息发送已屏蔽".format(target_dynamic['id'])
-                        else:
-                            bypass.log_message('INFO', "准备推送内容: {}".format(content))
-                            # 实际发送通知
-                            # 使用实际提取的文本内容
-                            actual_content = target_dynamic['text_content'].strip() if target_dynamic['text_content'] else '新动态'
-                            dynamic_info = {
-                                'dynamic_id': target_dynamic['id'],
-                                'content': actual_content,
-                                'timestamp': target_dynamic['pub_ts'],
-                                'url': "https://t.bilibili.com/{}".format(target_dynamic['id']),
-                                'pics': [],  # 可以后续添加图片处理
-                                'like': 0,
-                                'reply': 0,
-                                'forward': 0
-                            }
-                            success = send_wechat_notification(up_name, dynamic_info)
-                            if success:
-                                return "成功推送新动态(ID: {})".format(target_dynamic['id'])
-                            else:
-                                return "推送失败：新动态(ID: {})".format(target_dynamic['id'])
-                    else:
-                        bypass.log_message('INFO', "动态ID已存在，不重复推送")
-                        return None
-                else:
-                    bypass.log_message('INFO', "未找到最新动态")
-                return None
+                bypass.log_message('INFO', "获取到最新动态信息")
+                return dynamic_info
             else:
-                bypass.log_message('INFO', "polymer API未获取到动态")
+                bypass.log_message('INFO', "未找到动态数据")
                 return None
         else:
             bypass.log_message('WARNING', "polymer API返回错误: code={}".format(code))
             return None
             
     except Exception as e:
-        bypass.log_message('ERROR', "polymer API请求失败: {}".format(e))
+        bypass.log_message('ERROR', "获取动态信息失败: {}".format(e))
         return None
+
+def compare_and_get_latest(video_info, dynamic_info, bypass):
+    """比较视频和动态的时间戳，返回最新的项目"""
+    bypass.log_message('INFO', "=== 比较视频和动态的时间戳 ===")
     
-    # 如果polymer API失败，尝试vc API作为备选
-    bypass.log_message('INFO', "尝试vc API作为备选...")
-    return None
+    # 记录获取到的信息
+    if video_info:
+        bypass.log_message('INFO', "视频信息: 时间={}, 标题='{}'".format(
+            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(video_info['timestamp'])),
+            video_info['title']
+        ))
+    else:
+        bypass.log_message('INFO', "未获取到视频信息")
+    
+    if dynamic_info:
+        bypass.log_message('INFO', "动态信息: 时间={}, 内容='{}'".format(
+            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(dynamic_info['pub_ts'])),
+            dynamic_info['text_content'][:50] + '...' if len(dynamic_info['text_content']) > 50 else dynamic_info['text_content']
+        ))
+    else:
+        bypass.log_message('INFO', "未获取到动态信息")
+    
+    # 比较时间戳，选择最新的
+    if video_info and dynamic_info:
+        # 都有信息，比较时间戳
+        if video_info['timestamp'] >= dynamic_info['pub_ts']:
+            bypass.log_message('INFO', "✅ 选择视频（时间更新或相同）")
+            return video_info
+        else:
+            bypass.log_message('INFO', "✅ 选择动态（时间更新）")
+            return dynamic_info
+    elif video_info:
+        # 只有视频信息
+        bypass.log_message('INFO', "✅ 只有视频信息，选择视频")
+        return video_info
+    elif dynamic_info:
+        # 只有动态信息
+        bypass.log_message('INFO', "✅ 只有动态信息，选择动态")
+        return dynamic_info
+    else:
+        # 都没有信息
+        bypass.log_message('INFO', "❌ 未获取到任何新内容")
+        return None
+
+def push_latest_item(latest_item, up_name, bypass):
+    """推送最新的项目"""
+    bypass.log_message('INFO', "=== 准备推送最新内容 ===")
+    
+    if latest_item['type'] == 'video':
+        # 推送视频
+        bypass.log_message('INFO', "准备推送视频: {}".format(latest_item['title']))
+        
+        # 构建推送内容
+        content = f"【{latest_item['title']}】\n视频AV号: {latest_item['aid']}\n发布时间: {latest_item['pub_time']}\n时长: {latest_item['length']}\n视频链接: {latest_item['url']}"
+        
+        # 更新存储的动态ID
+        dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['timestamp']))
+        
+        if TEST_MODE:
+            bypass.log_message('INFO', f"[测试模式] 准备推送视频: {content}")
+            return f"测试模式：找到新视频({latest_item['title']})，消息发送已屏蔽"
+        else:
+            # 构建视频信息
+            video_info = {
+                'dynamic_id': latest_item['bvid'],
+                'content': latest_item['title'],
+                'content_type': '视频投稿',
+                'timestamp': latest_item['timestamp'],
+                'url': latest_item['url'],
+                'pics': [latest_item['pic']] if latest_item['pic'] else [],
+                'like': 0,
+                'reply': 0,
+                'forward': 0,
+                'description': latest_item['description'],
+                'length': latest_item['length'],
+                'aid': latest_item['aid'],
+                'bvid': latest_item['bvid']
+            }
+            
+            success = send_wechat_notification(up_name, video_info)
+            if success:
+                return f"成功推送新视频: {latest_item['title']}"
+            else:
+                return f"推送失败：新视频: {latest_item['title']}"
+    
+    else:  # dynamic
+        # 推送动态
+        bypass.log_message('INFO', "准备推送动态: {}".format(latest_item['text_content'][:50]))
+        
+        # 构建推送内容
+        content = "【{}】\n动态ID: {}\n发布时间: {}".format(
+            latest_item['text_content'] or '新动态',
+            latest_item['id'],
+            latest_item['pub_time']
+        )
+        
+        # 更新存储的动态ID
+        dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['pub_ts']))
+        
+        if TEST_MODE:
+            bypass.log_message('INFO', "[测试模式] 准备推送内容: {}".format(content))
+            return "测试模式：找到新动态(ID: {})，消息发送已屏蔽".format(latest_item['id'])
+        else:
+            # 构建动态信息
+            actual_content = latest_item['text_content'].strip() if latest_item['text_content'] else '新动态'
+            dynamic_info = {
+                'dynamic_id': latest_item['id'],
+                'content': actual_content,
+                'timestamp': latest_item['pub_ts'],
+                'url': "https://t.bilibili.com/{}".format(latest_item['id']),
+                'pics': [],  # 可以后续添加图片处理
+                'like': 0,
+                'reply': 0,
+                'forward': 0
+            }
+            
+            success = send_wechat_notification(up_name, dynamic_info)
+            if success:
+                return "成功推送新动态(ID: {})".format(latest_item['id'])
+            else:
+                return "推送失败：新动态(ID: {})".format(latest_item['id'])
+
+def get_up_latest_dynamic(uid=None, up_name=None):
+    """获取UP主最新动态（包括视频、图文、专栏等）"""
+    if not uid:
+        uid = "22376577"
+    if not up_name:
+        up_name = "牛奶糖好吃"
+    
+    bypass = APIRestrictionBypass()
+    bypass.setup_logger(log_level='INFO', enable_console=True)
+    
+    bypass.log_message('INFO', "=== 获取UP主 {} 最新动态 ===".format(up_name))
+    bypass.log_message('INFO', "用户UID: {}".format(uid))
+    
+    # 获取最新视频信息（不直接推送，只返回信息）
+    bypass.log_message('INFO', "获取最新视频信息...")
+    video_info = get_up_latest_video_info(uid, up_name)
+    
+    # 获取最新动态信息（不直接推送，只返回信息）
+    bypass.log_message('INFO', "获取最新动态信息...")
+    dynamic_info = get_up_latest_dynamic_info(uid, up_name)
+    
+    # 比较并获取最新的内容
+    latest_item = compare_and_get_latest(video_info, dynamic_info, bypass)
+    
+    if latest_item:
+        # 推送最新的内容
+        return push_latest_item(latest_item, up_name, bypass)
+    else:
+        bypass.log_message('INFO', "没有新的内容需要推送")
+        return None

@@ -4,9 +4,10 @@ import os
 
 # PushPlus配置 - 从config文件导入
 try:
-    from config import PUSHPLUS_TOKEN
+    from config import PUSHPLUS_TOKEN, ENABLE_PUSH
 except ImportError:
     PUSHPLUS_TOKEN = os.environ.get('PUSHPLUS_TOKEN', '')
+    ENABLE_PUSH = True  # 默认启用推送
 
 def should_send_notification(dynamic_created_time, up_uid=None, dynamic_id=None, dynamic_storage=None):
     """判断是否应该发送通知（基于动态ID对比）
@@ -39,6 +40,17 @@ def should_send_notification(dynamic_created_time, up_uid=None, dynamic_id=None,
 def send_wechat_notification(up_name, dynamic_info, bypass=None):
     """发送微信通知"""
     try:
+        # 检查是否启用推送
+        if not ENABLE_PUSH:
+            print(f"[INFO] 📝 推送功能已关闭，仅模拟推送: {up_name}")
+            if bypass:
+                bypass.log_message('INFO', f"📝 推送功能已关闭，仅模拟推送: {up_name}")
+            # 打印推送内容预览
+            content_text = dynamic_info.get('content', '').replace('\n', ' ').replace('\r', ' ').strip() if dynamic_info.get('content') else "新动态"
+            if len(content_text) > 50:
+                content_text = content_text[:50] + "..."
+            print(f"[INFO] 📋 推送预览 - 标题: {up_name} - {content_text}")
+            return True
         # 构建标题，移除换行符和特殊字符，确保单行
         content_text = dynamic_info.get('content', '').replace('\n', ' ').replace('\r', ' ').strip() if dynamic_info.get('content') else "新动态"
         if len(content_text) > 30:
