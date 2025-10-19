@@ -1,9 +1,17 @@
-测试：python3 /home/cloud/aliyun_function_deploy.py
+测试：python3 /home/cloud/Bilibili_dynamic_push.py
 
 更新脚本：
-cd ../home/cloud
+cd ../home
 rm -rf cloud
 git clone git@github.com:nntzhc/cloud.git
-cp ./cloud/aliyun_function_deploy.py ./aliyun_function_deploy.py
 
 查看日志：tail -f /home/cloud/cron_logs.log
+
+首次建立定时执行:
+# 给脚本添加执行权限
+chmod +x /home/cloud/Bilibili_dynamic_push.py
+# 测试脚本是否能正常运行（重要！先手动执行一次，确保没有报错）
+python3.11 /home/cloud/Bilibili_dynamic_push.py  # 用你实际的Python解释器路径
+crontab -e
+# 每分钟运行一次脚本，并将输出日志保存到cron_logs.log（方便排查问题）
+* * * * * /usr/local/bin/python3.11 /home/cloud/Bilibili_dynamic_push.py >> /home/cloud/cron_logs.log 2>&1
