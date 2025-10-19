@@ -6,7 +6,6 @@ import gzip
 import hashlib
 import uuid
 import string
-import numpy as np
 
 
 class APIRestrictionBypass:
