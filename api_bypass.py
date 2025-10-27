@@ -118,7 +118,7 @@ class APIRestrictionBypass:
         # 端点健康状态和智能选择
         self.endpoint_health = {
             'polymer': {
-                'success_rate': 1.0,
+                'success_rate': 0.0,  # 初始成功率为0%，避免无请求时显示100%
                 'avg_response_time': 0,
                 'last_used': 0,
                 'consecutive_failures': 0,
@@ -129,7 +129,7 @@ class APIRestrictionBypass:
                 'weight': 1.0  # 选择权重
             },
             'vc': {
-                'success_rate': 1.0,
+                'success_rate': 0.0,  # 初始成功率为0%，避免无请求时显示100%
                 'avg_response_time': 0,
                 'last_used': 0,
                 'consecutive_failures': 0,
@@ -140,7 +140,7 @@ class APIRestrictionBypass:
                 'weight': 0.8
             },
             'wbi': {
-                'success_rate': 1.0,
+                'success_rate': 0.0,  # 初始成功率为0%，避免无请求时显示100%
                 'avg_response_time': 0,
                 'last_used': 0,
                 'consecutive_failures': 0,
@@ -1215,7 +1215,7 @@ class APIRestrictionBypass:
         # 重置端点健康状态
         for endpoint in self.endpoint_health:
             self.endpoint_health[endpoint].update({
-                'success_rate': 1.0,
+                'success_rate': 0.0,  # 重置为0%，避免无请求时显示100%
                 'avg_response_time': 0,
                 'last_used': 0,
                 'consecutive_failures': 0,

@@ -5,7 +5,8 @@ cd ../home
 rm -rf cloud
 git clone git@github.com:nntzhc/cloud.git
 
-查看日志：tail -f /home/cloud/cron_logs.log
+查看日志：
+tail -f /home/cloud/cron_logs.log
 
 首次建立定时执行:
 # 给脚本添加执行权限

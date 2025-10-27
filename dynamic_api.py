@@ -432,9 +432,40 @@ def get_up_latest_dynamic_info(uid, up_name):
             if items:
                 bypass.log_message('INFO', "=== 详细分析最新动态 ===")
                 
-                # 获取前两条动态，比较时间戳，选择真正最新的动态
-                target_dynamic = None
+                # 获取多条动态用于存储（最多5条）
+                recent_dynamics = []
                 
+                # 获取前5条动态（按时间排序）
+                for i, item in enumerate(items[:5]):
+                    try:
+                        dynamic_id = item.get('id_str', '')
+                        pub_ts = item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
+                        if dynamic_id and pub_ts:
+                            recent_dynamics.append({
+                                'id': dynamic_id,
+                                'pub_ts': pub_ts,
+                                'index': i
+                            })
+                    except Exception as e:
+                        bypass.log_message('WARNING', f"解析第{i+1}条动态失败: {e}")
+                        continue
+                
+                # 按时间戳排序，确保最新的在前面
+                recent_dynamics.sort(key=lambda x: x['pub_ts'], reverse=True)
+                bypass.log_message('INFO', f"获取到 {len(recent_dynamics)} 条最近动态")
+                
+                # 存储最近5条动态ID（用于避免删除误判）
+                if recent_dynamics:
+                    bypass.log_message('INFO', "存储最近动态ID列表:")
+                    for i, dyn in enumerate(recent_dynamics[:5]):
+                        bypass.log_message('INFO', f"  {i+1}. ID: {dyn['id']}, 时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(dyn['pub_ts']))}")
+                    
+                    # 批量更新存储（只存储ID，不处理内容）
+                    for dyn in recent_dynamics[:5]:
+                        dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
+                
+                # 选择真正最新的动态进行处理
+                latest_item = None
                 if len(items) >= 2:
                     first_item = items[0]
                     second_item = items[1]
