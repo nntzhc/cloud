@@ -583,6 +583,16 @@ def get_up_latest_dynamic_info(uid, up_name):
                 is_new_dynamic = dynamic_storage.is_new_dynamic(up_name, dynamic_id)
                 bypass.log_message('INFO', "  动态ID对比结果: {}".format("新动态" if is_new_dynamic else "已存在动态"))
                 
+                # 显示与本地存储的匹配情况
+                recent_ids = dynamic_storage.get_recent_dynamic_ids(up_name)
+                if dynamic_id in recent_ids:
+                    match_index = recent_ids.index(dynamic_id) + 1  # 转换为1-based索引
+                    bypass.log_message('INFO', "  📍 匹配本地存储第 {} 条历史动态: {}".format(match_index, dynamic_id))
+                else:
+                    bypass.log_message('INFO', "  📍 未在本地存储中找到，确认为新动态: {}".format(dynamic_id))
+                    if recent_ids:
+                        bypass.log_message('INFO', "  📍 本地最新: {} (第1条)".format(recent_ids[0]))
+                
                 if not is_new_dynamic:
                     bypass.log_message('INFO', "动态已推送过，不重复处理")
                     return None

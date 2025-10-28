@@ -40,6 +40,16 @@ def monitor_bilibili_dynamics():
         bypass.log_message('INFO', "\n📱 检查 {} 的动态...".format(up['name']))
         
         try:
+            # 显示当前本地存储状态
+            recent_ids = dynamic_storage.get_recent_dynamic_ids(up['name'])
+            bypass.log_message('INFO', "📋 本地存储: 共 {} 条历史动态".format(len(recent_ids)))
+            if recent_ids:
+                bypass.log_message('INFO', "📋 本地最新: {} (第1条)".format(recent_ids[0]))
+                if len(recent_ids) > 1:
+                    bypass.log_message('INFO', "📋 历史第2条: {}".format(recent_ids[1]))
+                    if len(recent_ids) > 2:
+                        bypass.log_message('INFO', "📋 历史第3条: {}".format(recent_ids[2]))
+            
             # 获取UP主最新动态，传入uid和name
             dynamic = get_up_latest_dynamic(uid=up['uid'], up_name=up['name'])
             
