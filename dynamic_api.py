@@ -454,15 +454,8 @@ def get_up_latest_dynamic_info(uid, up_name):
                 recent_dynamics.sort(key=lambda x: x['pub_ts'], reverse=True)
                 bypass.log_message('INFO', f"获取到 {len(recent_dynamics)} 条最近动态")
                 
-                # 存储最近5条动态ID（用于避免删除误判）
-                if recent_dynamics:
-                    bypass.log_message('INFO', "存储最近动态ID列表:")
-                    for i, dyn in enumerate(recent_dynamics[:5]):
-                        bypass.log_message('INFO', f"  {i+1}. ID: {dyn['id']}, 时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(dyn['pub_ts']))}")
-                    
-                    # 批量更新存储（只存储ID，不处理内容）
-                    for dyn in recent_dynamics[:5]:
-                        dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
+                # ⚠️ 注意：这里不再提前更新存储，避免影响新动态判断
+                # 存储更新将在推送成功后进行
                 
                 # 选择真正最新的动态进行处理
                 latest_item = None
@@ -602,7 +595,8 @@ def get_up_latest_dynamic_info(uid, up_name):
                     'pub_ts': pub_ts,
                     'major_type': major_type,
                     'text_content': text_content,
-                    'raw_item': latest_item
+                    'raw_item': latest_item,
+                    'recent_dynamics': recent_dynamics[:5]  # 包含最近5条动态信息，用于后续批量更新
                 }
                 
                 bypass.log_message('INFO', "获取到最新动态信息")
@@ -675,6 +669,13 @@ def push_latest_item(latest_item, up_name, bypass):
         # 更新存储的动态ID
         dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['timestamp']))
         
+        # 批量更新最近5条动态ID（用于删除场景判断）
+        if 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
+            bypass.log_message('INFO', "批量更新最近动态ID列表:")
+            for dyn in latest_item['recent_dynamics']:
+                if dyn['id'] != latest_item['id']:  # 跳过已经更新的最新动态
+                    dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
+        
         if TEST_MODE:
             bypass.log_message('INFO', f"[测试模式] 准备推送视频: {content}")
             return f"测试模式：找到新视频({latest_item['title']})，消息发送已屏蔽"
@@ -715,6 +716,13 @@ def push_latest_item(latest_item, up_name, bypass):
         
         # 更新存储的动态ID
         dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['pub_ts']))
+        
+        # 批量更新最近5条动态ID（用于删除场景判断）
+        if 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
+            bypass.log_message('INFO', "批量更新最近动态ID列表:")
+            for dyn in latest_item['recent_dynamics']:
+                if dyn['id'] != latest_item['id']:  # 跳过已经更新的最新动态
+                    dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
         
         if TEST_MODE:
             bypass.log_message('INFO', "[测试模式] 准备推送内容: {}".format(content))
