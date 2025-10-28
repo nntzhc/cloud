@@ -11,6 +11,7 @@ tail -f /home/cloud/cron_logs.log
 首次建立定时执行:
 # 给脚本添加执行权限
 chmod +x /home/cloud/Bilibili_dynamic_push.py
+chmod +rwx /home/cloud/latest_dynamic_ids.json
 # 测试脚本是否能正常运行（重要！先手动执行一次，确保没有报错）
 python3.11 /home/cloud/Bilibili_dynamic_push.py  # 用你实际的Python解释器路径
 crontab -e
