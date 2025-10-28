@@ -43,21 +43,19 @@ class DynamicStorage:
         if uid_str not in self.data:
             return None
         
-        # 优先从recent_dynamic_ids获取最新的ID
+        # 从recent_dynamic_ids获取最新的ID
         recent_ids = self.data[uid_str].get('recent_dynamic_ids', [])
         if recent_ids:
             return recent_ids[0]  # 列表第一个是最新的
         
-        # 向后兼容旧的存储格式
-        return self.data[uid_str].get('dynamic_id')
+        return None
     
     def update_latest_dynamic_id(self, uid, dynamic_id, publish_time=None):
         """更新指定UP主的最新动态ID（存储最近5条）"""
         uid_str = str(uid)
         if uid_str not in self.data:
             self.data[uid_str] = {
-                'recent_dynamic_ids': [],  # 存储最近5条动态ID
-                'update_time': datetime.now().isoformat()
+                'recent_dynamic_ids': []  # 只存储最近5条动态ID
             }
         
         # 将新动态ID添加到列表开头
@@ -75,12 +73,6 @@ class DynamicStorage:
         # 只保留最近5条
         self.data[uid_str]['recent_dynamic_ids'] = self.data[uid_str]['recent_dynamic_ids'][:5]
         
-        # 更新其他信息
-        self.data[uid_str]['latest_dynamic_id'] = dynamic_id_str  # 保持向后兼容
-        self.data[uid_str]['update_time'] = datetime.now().isoformat()
-        if publish_time:
-            self.data[uid_str]['publish_time'] = publish_time.isoformat()
-        
         self.save_storage()
     
     def is_new_dynamic(self, uid, dynamic_id):
@@ -95,12 +87,9 @@ class DynamicStorage:
         # 获取最近5条动态ID列表
         recent_ids = self.data[uid_str].get('recent_dynamic_ids', [])
         
-        # 如果列表为空（可能是旧格式），使用旧的dynamic_id字段
+        # 如果列表为空，认为是新动态
         if not recent_ids:
-            old_id = self.data[uid_str].get('dynamic_id')
-            if old_id:
-                return str(old_id) != dynamic_id_str
-            return True  # 没有任何记录，认为是新动态
+            return True
         
         # 检查新动态ID是否在最近5条中
         if dynamic_id_str in recent_ids:
