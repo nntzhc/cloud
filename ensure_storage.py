@@ -11,7 +11,10 @@ import sys
 
 def ensure_storage_file():
     """确保存储文件存在且有效"""
-    storage_file = "/home/cloud/latest_dynamic_ids.json"
+    # 使用与DynamicStorage相同的路径选择逻辑
+    from latest_dynamic_storage import DynamicStorage
+    temp_storage = DynamicStorage()
+    storage_file = temp_storage.storage_file
     
     print(f"确保存储文件: {storage_file}")
     

@@ -19,7 +19,11 @@ def verify_storage_functionality():
     
     print("\n1. 检查存储文件内容")
     try:
-        with open('latest_dynamic_ids.json', 'r', encoding='utf-8') as f:
+        # 使用与DynamicStorage相同的路径
+        temp_storage = DynamicStorage()
+        storage_file = temp_storage.storage_file
+        
+        with open(storage_file, 'r', encoding='utf-8') as f:
             raw_data = json.load(f)
         print(f"   ✅ 存储文件读取成功")
         print(f"   📋 存储的UP主: {list(raw_data.keys())}")

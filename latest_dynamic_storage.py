@@ -13,9 +13,35 @@ class DynamicStorage:
     """动态ID存储管理器"""
     
     def __init__(self):
-        self.storage_file = "latest_dynamic_ids.json"
+        # 支持多环境的存储文件路径配置
+        self.storage_file = self._get_storage_file_path()
         self.data = {}
         self.load_storage()
+    
+    def _get_storage_file_path(self):
+        """获取存储文件路径，支持本目录和指定目录的兼容性"""
+        # 1. 首先尝试当前目录
+        current_dir_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "latest_dynamic_ids.json")
+        if os.path.exists(current_dir_file):
+            return current_dir_file
+        
+        # 2. 尝试用户主目录下的标准路径
+        home_path = os.path.expanduser("~/home/cloud/latest_dynamic_ids.json")
+        if os.path.exists(home_path):
+            return home_path
+        
+        # 3. 尝试云主机标准路径
+        cloud_path = "/home/cloud/latest_dynamic_ids.json"
+        if os.path.exists(cloud_path):
+            return cloud_path
+        
+        # 4. 如果都不存在，根据环境选择默认路径
+        # Windows环境下优先使用当前目录
+        if os.name == 'nt':  # Windows
+            return current_dir_file
+        else:
+            # Linux/云主机环境使用标准路径
+            return home_path
     
     def load_storage(self):
         """从文件加载存储的数据"""

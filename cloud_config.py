@@ -12,8 +12,10 @@ import sys
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
-# 确保存储文件路径正确
-STORAGE_FILE = os.path.join(script_dir, "latest_dynamic_ids.json")
+# 使用与DynamicStorage相同的路径选择逻辑确保兼容性
+from latest_dynamic_storage import DynamicStorage
+temp_storage = DynamicStorage()
+STORAGE_FILE = temp_storage.storage_file
 
 print(f"工作目录: {os.getcwd()}")
 print(f"存储文件: {STORAGE_FILE}")
