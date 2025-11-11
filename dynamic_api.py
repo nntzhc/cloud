@@ -24,7 +24,8 @@ def get_user_dynamics(uid, cookie_string=None, use_bypass=True):
     
     if use_bypass:
         bypass = APIRestrictionBypass()
-        bypass.setup_logger(log_level='INFO', enable_console=True)
+        # 日志系统已在主函数初始化，这里不再重复初始化
+        # bypass.setup_logger(log_level='INFO', enable_console=True)
         bypass.log_message('INFO', f"使用API风控绕过模式获取用户 {uid} 的动态...")
         
         # 尝试多个API端点
@@ -90,7 +91,8 @@ def get_user_dynamics(uid, cookie_string=None, use_bypass=True):
     else:
         # 传统模式（不使用风控绕过）
         bypass = APIRestrictionBypass()
-        bypass.setup_logger(log_level='INFO', enable_console=True)
+        # 日志系统已在主函数初始化，这里不再重复初始化
+        # bypass.setup_logger(log_level='INFO', enable_console=True)
         bypass.log_message('INFO', f"使用传统模式获取用户 {uid} 的动态...")
         
         url = f"https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid={uid}&timezone_offset=-480"
@@ -164,7 +166,8 @@ def get_up_latest_video(uid=None, up_name=None):
         up_name = "牛奶糖好吃"
     
     bypass = APIRestrictionBypass()
-    bypass.setup_logger(log_level='DEBUG', enable_console=True)
+    # 日志系统已在主函数初始化，这里不再重复初始化
+    # bypass.setup_logger(log_level='DEBUG', enable_console=True)
     
     bypass.log_message('INFO', "=== 获取UP主 {} 最新视频 ===".format(up_name))
     bypass.log_message('INFO', "用户UID: {}".format(uid))
@@ -669,7 +672,7 @@ def push_latest_item(latest_item, up_name, bypass):
     """推送最新的项目"""
     bypass.log_message('INFO', "=== 准备推送最新内容 ===")
     
-    if latest_item['type'] == 'video':
+    if latest_item and latest_item.get('type') == 'video':
         # 推送视频
         bypass.log_message('INFO', "准备推送视频: {}".format(latest_item['title']))
         
@@ -680,10 +683,10 @@ def push_latest_item(latest_item, up_name, bypass):
         dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['timestamp']))
         
         # 批量更新最近5条动态ID（用于删除场景判断）
-        if 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
+        if latest_item and 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
             bypass.log_message('INFO', "批量更新最近动态ID列表:")
             for dyn in latest_item['recent_dynamics']:
-                if dyn['id'] != latest_item['id']:  # 跳过已经更新的最新动态
+                if dyn and dyn.get('id') != latest_item['id']:  # 跳过已经更新的最新动态
                     dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
         
         if TEST_MODE:
@@ -713,7 +716,7 @@ def push_latest_item(latest_item, up_name, bypass):
             else:
                 return f"推送失败：新视频: {latest_item['title']}"
     
-    else:  # dynamic
+    elif latest_item and latest_item.get('type') == 'dynamic':  # dynamic
         # 推送动态
         bypass.log_message('INFO', "准备推送动态: {}".format(latest_item['text_content'][:50]))
         
@@ -728,10 +731,10 @@ def push_latest_item(latest_item, up_name, bypass):
         dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['pub_ts']))
         
         # 批量更新最近5条动态ID（用于删除场景判断）
-        if 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
+        if latest_item and 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
             bypass.log_message('INFO', "批量更新最近动态ID列表:")
             for dyn in latest_item['recent_dynamics']:
-                if dyn['id'] != latest_item['id']:  # 跳过已经更新的最新动态
+                if dyn and dyn.get('id') != latest_item['id']:  # 跳过已经更新的最新动态
                     dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
         
         if TEST_MODE:
@@ -765,25 +768,20 @@ def get_up_latest_dynamic(uid=None, up_name=None):
         up_name = "牛奶糖好吃"
     
     bypass = APIRestrictionBypass()
-    bypass.setup_logger(log_level='INFO', enable_console=True)
+    # 日志系统已在主函数初始化，这里不再重复初始化
+    # bypass.setup_logger(log_level='INFO', enable_console=True)
     
     bypass.log_message('INFO', "=== 获取UP主 {} 最新动态 ===".format(up_name))
     bypass.log_message('INFO', "用户UID: {}".format(uid))
-    
-    # 获取最新视频信息（不直接推送，只返回信息）
-    bypass.log_message('INFO', "获取最新视频信息...")
-    video_info = get_up_latest_video_info(uid, up_name)
     
     # 获取最新动态信息（不直接推送，只返回信息）
     bypass.log_message('INFO', "获取最新动态信息...")
     dynamic_info = get_up_latest_dynamic_info(uid, up_name)
     
-    # 比较并获取最新的内容
-    latest_item = compare_and_get_latest(video_info, dynamic_info, bypass)
-    
-    if latest_item:
-        # 推送最新的内容
-        return push_latest_item(latest_item, up_name, bypass)
+    if dynamic_info:
+        # 推送最新的动态
+        result = push_latest_item(dynamic_info, up_name, bypass)
+        return result if result else "没有新的动态需要推送"
     else:
-        bypass.log_message('INFO', "没有新的内容需要推送")
-        return None
+        bypass.log_message('INFO', "没有新的动态需要推送")
+        return "没有新的动态需要推送"

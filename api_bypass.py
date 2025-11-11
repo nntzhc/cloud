@@ -18,7 +18,13 @@ class APIRestrictionBypass:
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:120.0) Gecko/20100101 Firefox/120.0'
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:120.0) Gecko/20100101 Firefox/120.0',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36 OPR/104.0.0.0',
+            'Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
         ]
         
         self.accept_languages = [
@@ -100,19 +106,10 @@ class APIRestrictionBypass:
             'last_successful_endpoint': None
         }
         
-        # 请求频率控制和限流机制
+        # 简化配置 - 移除时间控制机制
         self.rate_limiter = {
-            'request_times': [],  # 存储最近请求时间
-            'max_requests_per_minute': 30,  # 每分钟最大请求数
-            'max_requests_per_hour': 500,  # 每小时最大请求数
-            'min_request_interval': 2.0,  # 最小请求间隔（秒）
-            'burst_threshold': 5,  # 突发请求阈值
-            'current_window_requests': 0,  # 当前时间窗口请求数
-            'window_start_time': time.time(),  # 时间窗口开始时间
-            'window_duration': 60,  # 时间窗口长度（秒）
-            'adaptive_delay_enabled': True,  # 自适应延迟启用
-            'base_delay_multiplier': 1.0,  # 基础延迟倍数
-            'last_rate_limit_time': None  # 上次触发限流的时间
+            'adaptive_delay_enabled': False,  # 禁用自适应延迟
+            'base_delay_multiplier': 1.0,  # 基础延迟倍数（不再使用）
         }
         
         # 端点健康状态和智能选择
@@ -193,12 +190,48 @@ class APIRestrictionBypass:
             {
                 'ja3': '769,47-53-5-10-49161-49162-49171-49172-50-56-19-4,0-10-11,23-24-25,0',
                 'ja3_hash': 'd5e5c8f5f5f5f5f5f5f5f5f5f5f5f5f5',
-                'user_agent': 'Chrome/120.0.0.0'
+                'user_agent': 'Chrome/120.0.0.0',
+                'cipher_suites': [
+                    'TLS_AES_128_GCM_SHA256', 'TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384', 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384'
+                ],
+                'tls_version': 'TLSv1.3',
+                'supported_groups': ['X25519', 'secp256r1', 'secp384r1']
             },
             {
                 'ja3': '769,47-53-5-10-49161-49162-49171-49172-50-56-19-4,0-10-11,23-24-25,0',
                 'ja3_hash': 'e6f6d7g6g6g6g6g6g6g6g6g6g6g6g6g6g6',
-                'user_agent': 'Firefox/120.0'
+                'user_agent': 'Firefox/120.0',
+                'cipher_suites': [
+                    'TLS_AES_128_GCM_SHA256', 'TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'
+                ],
+                'tls_version': 'TLSv1.3',
+                'supported_groups': ['X25519', 'secp256r1', 'secp384r1', 'secp521r1']
+            },
+            {
+                'ja3': '769,47-53-5-10-49161-49162-49171-49172-50-56-19-4,0-10-11,23-24-25,0',
+                'ja3_hash': 'f7g7h8h7h7h7h7h7h7h7h7h7h7h7h7h7h7',
+                'user_agent': 'Safari/17.1',
+                'cipher_suites': [
+                    'TLS_AES_128_GCM_SHA256', 'TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256'
+                ],
+                'tls_version': 'TLSv1.3',
+                'supported_groups': ['X25519', 'secp256r1', 'secp384r1']
+            },
+            {
+                'ja3': '769,47-53-5-10-49161-49162-49171-49172-50-56-19-4,0-10-11,23-24-25,0',
+                'ja3_hash': 'g8h8i9i8i8i8i8i8i8i8i8i8i8i8i8i8i8',
+                'user_agent': 'Edge/120.0.0.0',
+                'cipher_suites': [
+                    'TLS_AES_128_GCM_SHA256', 'TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384', 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
+                    'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256', 'TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256'
+                ],
+                'tls_version': 'TLSv1.3',
+                'supported_groups': ['X25519', 'secp256r1', 'secp384r1']
             }
         ]
     
@@ -579,6 +612,7 @@ class APIRestrictionBypass:
     
     def get_random_headers(self, uid=None, endpoint_name=None, enable_fingerprint_randomization=True, endpoint='polymer', **kwargs):
         """获取随机化的请求头"""
+        # 基础请求头
         headers = {
             'User-Agent': random.choice(self.user_agents),
             'Accept': 'application/json, text/plain, */*',
@@ -592,6 +626,28 @@ class APIRestrictionBypass:
             'Pragma': 'no-cache',
             'Cache-Control': 'no-cache',
         }
+        
+        # 添加更多真实的浏览器特征
+        if random.random() < 0.8:  # 80%概率添加
+            headers.update({
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-CH-UA-Mobile': '?0',
+                'Sec-CH-UA-Platform': random.choice(['"Windows"', '"macOS"', '"Linux"']),
+            })
+        
+        # 随机添加一些可选的浏览器特征
+        optional_features = {
+            'Save-Data': lambda: random.choice(['on', 'off']),
+            'Sec-GPC': lambda: '1' if random.random() < 0.3 else None,
+            'Purpose': lambda: random.choice(['prefetch', '']) if random.random() < 0.2 else None,
+            'Priority': lambda: random.choice(['u=0, i', 'u=1, i', 'u=2, i']) if random.random() < 0.4 else None,
+        }
+        
+        for header, generator in optional_features.items():
+            if random.random() < 0.3:  # 30%概率添加
+                value = generator()
+                if value:
+                    headers[header] = value
         
         # 添加浏览器指纹随机化
         if enable_fingerprint_randomization:
@@ -986,85 +1042,6 @@ class APIRestrictionBypass:
         
         return False, ""
     
-    def record_rate_limit(self):
-        """记录限流事件"""
-        current_time = time.time()
-        self.rate_limiter['last_rate_limit_time'] = current_time
-        
-        # 增加限流倍数（指数增长）
-        current_multiplier = self.rate_limiter['base_delay_multiplier']
-        new_multiplier = min(current_multiplier * 1.5, 10.0)  # 最大10倍
-        self.rate_limiter['base_delay_multiplier'] = new_multiplier
-        
-        self.log_message('WARNING', f"记录限流事件，延迟倍数调整为: {new_multiplier:.1f}x")
-    
-    def calculate_adaptive_delay(self):
-        """计算自适应延迟"""
-        if not self.rate_limiter['adaptive_delay_enabled']:
-            return 0.0
-        
-        current_time = time.time()
-        base_delay = self.rate_limiter['min_request_interval']
-        
-        # 基于限流倍数调整延迟
-        multiplier = self.rate_limiter['base_delay_multiplier']
-        adaptive_delay = base_delay * multiplier
-        
-        # 基于最近请求密度调整延迟
-        recent_requests = [
-            req_time for req_time in self.rate_limiter['request_times']
-            if req_time > current_time - 300  # 最近5分钟
-        ]
-        
-        if len(recent_requests) > 10:  # 最近5分钟请求较多
-            density_factor = min(len(recent_requests) / 20.0, 2.0)  # 最多增加2倍
-            adaptive_delay *= (1.0 + density_factor)
-        
-        # 基于时间窗口调整延迟（避免在短时间窗口内集中请求）
-        window_progress = (current_time - self.rate_limiter['window_start_time']) / self.rate_limiter['window_duration']
-        if window_progress < 0.1:  # 窗口刚开始
-            window_factor = 1.5
-        elif window_progress > 0.9:  # 窗口快结束
-            window_factor = 0.8
-        else:
-            window_factor = 1.0
-        
-        adaptive_delay *= window_factor
-        
-        # 添加随机抖动（10-20%）
-        jitter = random.uniform(0.1, 0.2)
-        adaptive_delay *= (1.0 + jitter)
-        
-        return max(adaptive_delay, 0.5)  # 最小0.5秒延迟
-    
-    def record_request(self):
-        """记录请求"""
-        current_time = time.time()
-        self.rate_limiter['request_times'].append(current_time)
-        
-        # 更新时间窗口
-        time_since_window_start = current_time - self.rate_limiter['window_start_time']
-        if time_since_window_start >= self.rate_limiter['window_duration']:
-            self.rate_limiter['window_start_time'] = current_time
-            self.rate_limiter['current_window_requests'] = 0
-        
-        self.rate_limiter['current_window_requests'] += 1
-        
-        # 清理过期的请求记录
-        cutoff_time = current_time - 3600
-        self.rate_limiter['request_times'] = [
-            req_time for req_time in self.rate_limiter['request_times']
-            if req_time > cutoff_time
-        ]
-    
-    def reset_rate_limit_multiplier(self):
-        """重置限流倍数"""
-        old_multiplier = self.rate_limiter['base_delay_multiplier']
-        self.rate_limiter['base_delay_multiplier'] = 1.0
-        
-        if old_multiplier > 1.0:
-            self.log_message('INFO', f"限流倍数重置: {old_multiplier:.1f}x → 1.0x")
-    
     def get_request_stats(self):
         """获取请求统计信息"""
         success_rate = 0
@@ -1097,193 +1074,6 @@ class APIRestrictionBypass:
             }
         
         return report
-    
-    def get_rate_limiter_stats(self):
-        """获取限流器统计信息"""
-        current_time = time.time()
-        recent_requests = [
-            req_time for req_time in self.rate_limiter['request_times']
-            if req_time > current_time - 3600  # 最近1小时
-        ]
-        
-        recent_minute_requests = [
-            req_time for req_time in recent_requests
-            if req_time > current_time - 60
-        ]
-        
-        recent_hour_requests = [
-            req_time for req_time in recent_requests
-            if req_time > current_time - 3600
-        ]
-        
-        return {
-            'total_requests_last_hour': len(recent_hour_requests),
-            'requests_last_minute': len(recent_minute_requests),
-            'current_multiplier': f"{self.rate_limiter['base_delay_multiplier']:.1f}x",
-            'adaptive_delay_enabled': self.rate_limiter['adaptive_delay_enabled'],
-            'min_request_interval': self.rate_limiter['min_request_interval'],
-            'max_requests_per_minute': self.rate_limiter['max_requests_per_minute'],
-            'max_requests_per_hour': self.rate_limiter['max_requests_per_hour'],
-            'burst_threshold': self.rate_limiter['burst_threshold'],
-            'last_rate_limit_time': self.rate_limiter['last_rate_limit_time']
-        }
-    
-    def export_behavior_data(self, filename=None):
-        """导出行为数据用于分析"""
-        if filename is None:
-            filename = f"behavior_data_{int(time.time())}.json"
-        
-        behavior_data = {
-            'timestamp': time.time(),
-            'request_stats': self.get_request_stats(),
-            'endpoint_health': self.get_endpoint_health_report(),
-            'rate_limiter_stats': self.get_rate_limiter_stats(),
-            'proxy_stats': self.get_proxy_stats(),
-            'browser_fingerprints': {
-                'viewport_sizes': self.browser_fingerprints['viewport_sizes'],
-                'user_agents': self.user_agents,
-                'accept_languages': self.accept_languages
-            },
-            'configuration': {
-                'rate_limiter': self.rate_limiter,
-                'endpoint_selection': self.endpoint_selection_config,
-                'retry_config': self.retry_config
-            }
-        }
-        
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(behavior_data, f, ensure_ascii=False, indent=2)
-            self.log_message('INFO', f"行为数据已导出到: {filename}")
-            return filename
-        except Exception as e:
-            self.log_message('ERROR', f"导出行为数据失败: {e}")
-            return None
-    
-    def import_behavior_data(self, filename):
-        """导入行为数据"""
-        try:
-            with open(filename, 'r', encoding='utf-8') as f:
-                behavior_data = json.load(f)
-            
-            # 恢复统计信息
-            if 'request_stats' in behavior_data:
-                stats = behavior_data['request_stats']
-                self.request_stats.update({
-                    'total_requests': stats.get('total_requests', 0),
-                    'successful_requests': stats.get('successful_requests', 0),
-                    'failed_requests': stats.get('failed_requests', 0),
-                    'rate_limited_requests': stats.get('rate_limited_requests', 0),
-                    'last_successful_endpoint': stats.get('last_successful_endpoint')
-                })
-            
-            # 恢复端点健康状态
-            if 'endpoint_health' in behavior_data:
-                for endpoint, health_data in behavior_data['endpoint_health'].items():
-                    if endpoint in self.endpoint_health:
-                        # 只恢复部分数据，避免覆盖实时数据
-                        if 'total_requests' in health_data:
-                            self.endpoint_health[endpoint]['total_requests'] = health_data['total_requests']
-                        if 'successful_requests' in health_data:
-                            self.endpoint_health[endpoint]['successful_requests'] = health_data['successful_requests']
-                        
-                        # 重新计算成功率
-                        if self.endpoint_health[endpoint]['total_requests'] > 0:
-                            self.endpoint_health[endpoint]['success_rate'] = (
-                                self.endpoint_health[endpoint]['successful_requests'] /
-                                self.endpoint_health[endpoint]['total_requests']
-                            )
-            
-            self.log_message('INFO', f"行为数据已从 {filename} 导入")
-            return True
-            
-        except Exception as e:
-            self.log_message('ERROR', f"导入行为数据失败: {e}")
-            return False
-    
-    def reset_all_stats(self):
-        """重置所有统计信息"""
-        # 重置请求统计
-        self.request_stats = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'rate_limited_requests': 0,
-            'last_successful_endpoint': None
-        }
-        
-        # 重置端点健康状态
-        for endpoint in self.endpoint_health:
-            self.endpoint_health[endpoint].update({
-                'success_rate': 0.0,  # 重置为0%，避免无请求时显示100%
-                'avg_response_time': 0,
-                'last_used': 0,
-                'consecutive_failures': 0,
-                'total_requests': 0,
-                'successful_requests': 0,
-                'cooldown_until': 0,
-                'weight': 1.0
-            })
-        
-        # 重置限流器
-        self.rate_limiter.update({
-            'request_times': [],
-            'current_window_requests': 0,
-            'window_start_time': time.time(),
-            'base_delay_multiplier': 1.0,
-            'last_rate_limit_time': None
-        })
-        
-        # 重置代理统计
-        self.proxy_stats.update({
-            'total_proxy_requests': 0,
-            'successful_proxy_requests': 0,
-            'failed_proxy_requests': 0
-        })
-        
-        self.log_message('INFO', "所有统计信息已重置")
-    
-    def enable_advanced_stealth_mode(self, enabled=True):
-        """启用高级隐身模式"""
-        if enabled:
-            self.log_message('INFO', "启用高级隐身模式")
-            
-            # 启用所有指纹随机化
-            self.browser_fingerprints.update({
-                'canvas_fingerprint_enabled': True,
-                'webgl_fingerprint_enabled': True,
-                'audio_fingerprint_enabled': True,
-                'client_hints_enabled': True
-            })
-            
-            # 启用自适应延迟
-            self.rate_limiter['adaptive_delay_enabled'] = True
-            
-            # 启用智能端点选择
-            self.endpoint_selection_config['enable_smart_selection'] = True
-            
-            # 启用代理轮换（如果有代理）
-            if self.proxy_pools:
-                self.enable_proxy_rotation(True)
-            
-            # 调整限流参数为更保守的值
-            self.rate_limiter.update({
-                'max_requests_per_minute': 20,  # 降低每分钟请求数
-                'max_requests_per_hour': 300,     # 降低每小时请求数
-                'min_request_interval': 3.0,    # 增加最小请求间隔
-                'burst_threshold': 3             # 降低突发请求阈值
-            })
-            
-        else:
-            self.log_message('INFO', "禁用高级隐身模式")
-            
-            # 恢复默认设置
-            self.rate_limiter.update({
-                'max_requests_per_minute': 30,
-                'max_requests_per_hour': 500,
-                'min_request_interval': 2.0,
-                'burst_threshold': 5
-            })
     
     def generate_stealth_headers(self, uid=None, endpoint_name=None):
         """生成隐身模式请求头"""
@@ -1392,18 +1182,60 @@ class APIRestrictionBypass:
         return False
 
     def select_proxy(self):
-        """选择代理IP
+        """选择代理IP - 优化版本，添加健康检查
         
         Returns:
             dict or None: 代理配置或None
         """
         if not self.proxy_pools:
             return None
+        
+        # 代理健康检查（简单版本）
+        healthy_proxies = []
+        for proxy in self.proxy_pools:
+            if self.is_proxy_healthy(proxy):
+                healthy_proxies.append(proxy)
+        
+        # 优先选择健康代理，如果没有则随机选择
+        if healthy_proxies:
+            selected_proxy = random.choice(healthy_proxies)
+            self.log_message('INFO', f'选择健康代理: {selected_proxy}')
+        else:
+            selected_proxy = random.choice(self.proxy_pools)
+            self.log_message('WARNING', f'没有健康代理，随机选择: {selected_proxy}')
+        
+        return selected_proxy
+    
+    def is_proxy_healthy(self, proxy):
+        """检查代理是否健康
+        
+        Args:
+            proxy: 代理配置
             
-        # 随机选择一个代理
-        proxy = random.choice(self.proxy_pools)
-        self.log_message('INFO', f'选择代理: {proxy}')
-        return proxy
+        Returns:
+            bool: 代理是否健康
+        """
+        try:
+            # 简单的健康检查：尝试连接一个稳定的服务
+            test_url = 'https://httpbin.org/ip'
+            response = requests.get(
+                test_url,
+                proxies=proxy,
+                timeout=5,
+                verify=True
+            )
+            
+            # 检查响应状态
+            if response.status_code == 200:
+                self.log_message('INFO', f'代理健康检查通过: {proxy}')
+                return True
+            else:
+                self.log_message('WARNING', f'代理健康检查失败: {proxy}, 状态码: {response.status_code}')
+                return False
+                
+        except Exception as e:
+            self.log_message('ERROR', f'代理健康检查异常: {proxy}, 错误: {str(e)}')
+            return False
 
     def get_proxy_stats(self):
         """获取代理统计信息
@@ -1463,7 +1295,7 @@ class APIRestrictionBypass:
         }
 
     def make_request_with_bypass(self, url, headers=None, cookies=None, method='GET', data=None, params=None, timeout=30, max_retries=None):
-        """使用风控绕过策略发送请求
+        """使用风控绕过策略发送请求 - 优化版本
         
         Args:
             url: 请求URL
@@ -1473,7 +1305,7 @@ class APIRestrictionBypass:
             data: POST数据
             params: URL参数
             timeout: 超时时间
-            max_retries: 最大重试次数
+            max_retries: 最大重试次数（已废弃，只尝试一次）
             
         Returns:
             dict: 响应数据
@@ -1481,6 +1313,30 @@ class APIRestrictionBypass:
         if max_retries is None:
             max_retries = self.retry_config['max_retries']
             
+        # 忽略max_retries参数，只尝试一次
+        # 优化版本，添加行为随机化
+        
+        # 模拟人类行为延迟
+        self.simulate_human_delay()
+        
+        # 模拟鼠标行为（生成但不实际执行，用于日志记录）
+        mouse_trajectory = self.simulate_mouse_movement(
+            start_x=random.randint(0, 200),
+            start_y=random.randint(0, 200),
+            target_x=random.randint(600, 1000),
+            target_y=random.randint(400, 800)
+        )
+        
+        # 模拟页面停留时间
+        stay_time = self.simulate_page_stay_time(min_time=1, max_time=8)
+        self.log_message('INFO', f'模拟页面停留时间: {stay_time:.1f}秒')
+        
+        # 模拟滚动行为（生成但不实际执行）
+        scroll_behavior = self.simulate_scroll_behavior(
+            start_y=random.randint(0, 100),
+            end_y=random.randint(500, 1200)
+        )
+        
         # 确保有请求头
         if headers is None:
             headers = self.get_random_headers()
@@ -1499,139 +1355,83 @@ class APIRestrictionBypass:
         # 选择代理
         proxy = self.select_proxy() if self.proxy_rotation_enabled else None
         
-        # 执行请求
-        for attempt in range(max_retries):
-            try:
-                # 限流检查
-                self._apply_rate_limit()
-                
-                # 记录请求开始时间
-                start_time = time.time()
-                
-                # 发送请求
-                response = requests.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    params=params,
-                    data=data,
-                    timeout=timeout,
-                    proxies=proxy,
-                    verify=True
-                )
-                
-                # 记录响应时间
-                response_time = time.time() - start_time
-                
-                # 更新统计信息
-                self.request_stats['total_requests'] += 1
-                
-                # 检查响应状态
-                if response.status_code == 200:
-                    try:
-                        response_data = response.json()
-                        
-                        # 检查是否触发限流
-                        if self.is_rate_limited(response_data):
-                            self.request_stats['rate_limited_requests'] += 1
-                            self.log_message('WARNING', f"请求触发限流: {url}")
-                            
-                            # 如果启用代理轮换，切换代理
-                            if self.proxy_rotation_enabled:
-                                proxy = self.select_proxy()
-                                
-                            # 等待更长时间
-                            time.sleep(self.retry_config['base_delay'] * (attempt + 1))
-                            continue
-                        
-                        # 成功请求
-                        self.request_stats['successful_requests'] += 1
-                        self.log_message('INFO', f"请求成功: {url}")
-                        return response_data
-                        
-                    except json.JSONDecodeError:
-                        self.log_message('ERROR', f"响应解析失败: {url}")
-                        self.request_stats['failed_requests'] += 1
-                        return {'code': -1, 'message': '响应解析失败', 'data': None}
-                        
-                else:
-                    self.log_message('WARNING', f"HTTP错误 {response.status_code}: {url}")
+        # 执行请求 - 优化版本，添加行为模拟
+        try:
+            # 限流检查（已简化，不再实际限流）
+            self._apply_rate_limit()
+            
+            # 发送请求
+            response = requests.request(
+                method=method,
+                url=url,
+                headers=headers,
+                params=params,
+                data=data,
+                timeout=timeout,
+                proxies=proxy,
+                verify=True
+            )
+            
+            # 更新统计信息
+            self.request_stats['total_requests'] += 1
+            
+            # 检查响应状态
+            if response.status_code == 200:
+                try:
+                    response_data = response.json()
+                    
+                    # 检查是否触发限流
+                    if self.is_rate_limited(response_data):
+                        self.request_stats['rate_limited_requests'] += 1
+                        self.log_message('WARNING', f"请求触发限流: {url}")
+                        return {'code': -1, 'message': '请求触发限流', 'data': None}
+                    
+                    # 成功请求
+                    self.request_stats['successful_requests'] += 1
+                    self.log_message('INFO', f"请求成功: {url}")
+                    return response_data
+                    
+                except json.JSONDecodeError:
+                    self.log_message('ERROR', f"响应解析失败: {url}")
                     self.request_stats['failed_requests'] += 1
+                    return {'code': -1, 'message': '响应解析失败', 'data': None}
                     
-                    # 如果启用代理轮换，切换代理
-                    if self.proxy_rotation_enabled:
-                        proxy = self.select_proxy()
-                        
-                    # 等待后重试
-                    delay = self._calculate_retry_delay(attempt)
-                    time.sleep(delay)
-                    
-            except requests.exceptions.RequestException as e:
-                self.log_message('ERROR', f"请求异常 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+            else:
+                self.log_message('WARNING', f"HTTP错误 {response.status_code}: {url}")
                 self.request_stats['failed_requests'] += 1
+                return {'code': -1, 'message': f'HTTP错误 {response.status_code}', 'data': None}
                 
-                # 如果启用代理轮换，切换代理
-                if self.proxy_rotation_enabled:
-                    proxy = self.select_proxy()
-                    
-                # 等待后重试
-                if attempt < max_retries - 1:
-                    delay = self._calculate_retry_delay(attempt)
-                    time.sleep(delay)
-                    
-        # 所有重试都失败
-        self.log_message('ERROR', f"请求失败 (重试 {max_retries} 次): {url}")
-        return {'code': -1, 'message': '请求失败', 'data': None}
+        except requests.exceptions.RequestException as e:
+            self.log_message('ERROR', f"请求异常: {str(e)}")
+            self.request_stats['failed_requests'] += 1
+            return {'code': -1, 'message': f'请求异常: {str(e)}', 'data': None}
 
+    def simulate_human_delay(self):
+        """模拟人类行为延迟"""
+        # 基础延迟范围（模拟人类操作间隔）
+        base_delay = random.uniform(0.5, 2.5)
+        
+        # 添加随机波动
+        random_factor = random.uniform(0.8, 1.3)
+        
+        # 考虑操作复杂度（简单的操作延迟短，复杂的操作延迟长）
+        complexity_factor = random.uniform(0.7, 1.5)
+        
+        # 计算最终延迟
+        final_delay = base_delay * random_factor * complexity_factor
+        
+        # 确保延迟在合理范围内
+        final_delay = max(0.3, min(final_delay, 5.0))
+        
+        self.log_message('INFO', f'模拟人类行为延迟: {final_delay:.2f}秒')
+        time.sleep(final_delay)
+    
     def _apply_rate_limit(self):
-        """应用限流控制"""
-        current_time = time.time()
-        
-        # 清理过期的请求时间记录
-        self.rate_limiter['request_times'] = [
-            t for t in self.rate_limiter['request_times'] 
-            if current_time - t < 3600  # 保留1小时内的记录
-        ]
-        
-        # 检查时间窗口
-        if current_time - self.rate_limiter['window_start_time'] > self.rate_limiter['window_duration']:
-            self.rate_limiter['current_window_requests'] = 0
-            self.rate_limiter['window_start_time'] = current_time
-        
-        # 检查各种限流条件
-        if len(self.rate_limiter['request_times']) >= self.rate_limiter['max_requests_per_hour']:
-            sleep_time = 3600 - (current_time - self.rate_limiter['request_times'][0])
-            if sleep_time > 0:
-                self.log_message('INFO', f"达到每小时请求限制，等待 {sleep_time:.1f} 秒")
-                time.sleep(sleep_time)
-                
-        # 检查每分钟请求数
-        recent_requests = [
-            t for t in self.rate_limiter['request_times'] 
-            if current_time - t < 60
-        ]
-        
-        if len(recent_requests) >= self.rate_limiter['max_requests_per_minute']:
-            sleep_time = 60 - (current_time - recent_requests[0])
-            if sleep_time > 0:
-                self.log_message('INFO', f"达到每分钟请求限制，等待 {sleep_time:.1f} 秒")
-                time.sleep(sleep_time)
-        
-        # 检查最小请求间隔
-        if self.rate_limiter['request_times']:
-            last_request_time = self.rate_limiter['request_times'][-1]
-            elapsed = current_time - last_request_time
-            if elapsed < self.rate_limiter['min_request_interval']:
-                sleep_time = self.rate_limiter['min_request_interval'] - elapsed
-                time.sleep(sleep_time)
-                current_time = time.time()
-        
-        # 记录本次请求时间
-        self.rate_limiter['request_times'].append(current_time)
-        self.rate_limiter['current_window_requests'] += 1
+        """应用限流控制 - 简化版本，不再进行限流检查"""
+        pass  # 不再进行限流控制，由系统定时任务管理频率
 
     def _calculate_retry_delay(self, attempt):
-        """计算重试延迟时间
+        """计算重试延迟时间 - 简化版本
         
         Args:
             attempt: 当前重试次数
@@ -1639,20 +1439,7 @@ class APIRestrictionBypass:
         Returns:
             float: 延迟时间（秒）
         """
-        # 指数退避
-        base_delay = self.retry_config['base_delay']
-        backoff_factor = self.retry_config['backoff_factor']
-        max_delay = self.retry_config['max_delay']
-        
-        delay = base_delay * (backoff_factor ** attempt)
-        
-        # 添加抖动
-        jitter_range = self.retry_config['jitter_range']
-        jitter = random.uniform(jitter_range[0], jitter_range[1])
-        delay += jitter
-        
-        # 限制最大延迟
-        return min(delay, max_delay)
+        return 0.0  # 不再进行延迟，由系统定时任务控制频率
 
     def log_system_stats(self):
         """记录系统统计信息"""

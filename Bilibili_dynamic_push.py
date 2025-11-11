@@ -20,14 +20,15 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 from config import PUSHPLUS_TOKEN, TEST_MODE, UP_LIST
 from api_bypass import APIRestrictionBypass
 from push_notification import should_send_notification, send_wechat_notification, is_aliyun_environment
-from dynamic_api import get_up_latest_dynamic, get_user_dynamics, get_up_latest_video
+from dynamic_api import get_up_latest_dynamic, get_user_dynamics
 from latest_dynamic_storage import storage as dynamic_storage
 
 def monitor_bilibili_dynamics():
     """监控B站UP主动态 - 主监控逻辑"""
     current_time = datetime.now()
     bypass = APIRestrictionBypass()
-    bypass.setup_logger()
+    # 日志系统已在主函数初始化，这里不再重复初始化
+    # bypass.setup_logger()
     
     bypass.log_message('INFO', "🚀 开始监控B站动态 - {}".format(current_time.strftime('%Y-%m-%d %H:%M:%S')))
     bypass.log_message('INFO', "🔍 使用动态ID判断最新动态")
@@ -57,10 +58,10 @@ def monitor_bilibili_dynamics():
             bypass.log_message('INFO', "✅ {}".format(dynamic))
             
             # 检查是否找到并成功推送动态
-            if "成功推送" in dynamic or ("找到" in dynamic and "分钟前" in dynamic):
+            if dynamic and ("成功推送" in dynamic or ("找到" in dynamic and "分钟前" in dynamic)):
                 notified_count += 1
                 new_count += 1
-            elif "测试模式" in dynamic and "找到" in dynamic:
+            elif dynamic and "测试模式" in dynamic and "找到" in dynamic:
                 # 测试模式下找到但未推送的情况
                 new_count += 1
             
@@ -80,7 +81,8 @@ def monitor_bilibili_dynamics():
 def handler(event, context):
     """阿里云函数计算入口函数"""
     bypass = APIRestrictionBypass()
-    bypass.setup_logger()
+    # 日志系统已在主函数初始化，这里不再重复初始化
+    # bypass.setup_logger()
     
     bypass.log_message('INFO', "⏰ 当前时间: {}".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     bypass.log_message('INFO', "🔍 使用动态ID判断最新动态")
