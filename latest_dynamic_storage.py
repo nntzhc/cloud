@@ -81,13 +81,16 @@ class DynamicStorage:
         uid_str = str(uid)
         if uid_str not in self.data:
             self.data[uid_str] = {
-                'recent_dynamic_ids': []  # 只存储最近5条动态ID
+                'recent_dynamic_ids': [],  # 只存储最近5条动态ID
+                'dynamic_timestamps': {}   # 存储动态ID对应的时间戳信息
             }
         
         # 将新动态ID添加到列表开头
         dynamic_id_str = str(dynamic_id)
         if 'recent_dynamic_ids' not in self.data[uid_str]:
             self.data[uid_str]['recent_dynamic_ids'] = []
+        if 'dynamic_timestamps' not in self.data[uid_str]:
+            self.data[uid_str]['dynamic_timestamps'] = {}
         
         # 如果ID已存在，先移除它（避免重复）
         if dynamic_id_str in self.data[uid_str]['recent_dynamic_ids']:
@@ -96,8 +99,33 @@ class DynamicStorage:
         # 将新ID添加到列表开头
         self.data[uid_str]['recent_dynamic_ids'].insert(0, dynamic_id_str)
         
+        # 存储时间戳信息
+        if publish_time:
+            # 如果是datetime对象，转换为字符串
+            if hasattr(publish_time, 'strftime'):
+                time_str = publish_time.strftime('%Y-%m-%d %H:%M:%S')
+            elif isinstance(publish_time, (int, float)):
+                # 如果是Unix时间戳，转换为可读格式
+                from datetime import datetime
+                time_obj = datetime.fromtimestamp(publish_time)
+                time_str = time_obj.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                # 其他类型直接转换为字符串
+                time_str = str(publish_time)
+            self.data[uid_str]['dynamic_timestamps'][dynamic_id_str] = time_str
+        
         # 只保留最近5条
         self.data[uid_str]['recent_dynamic_ids'] = self.data[uid_str]['recent_dynamic_ids'][:5]
+        
+        # 清理不再需要的动态ID对应的时间戳
+        current_ids = set(self.data[uid_str]['recent_dynamic_ids'])
+        timestamps_to_remove = []
+        for stored_id in self.data[uid_str]['dynamic_timestamps']:
+            if stored_id not in current_ids:
+                timestamps_to_remove.append(stored_id)
+        
+        for id_to_remove in timestamps_to_remove:
+            del self.data[uid_str]['dynamic_timestamps'][id_to_remove]
         
         self.save_storage()
     

@@ -38,11 +38,13 @@ def monitor_bilibili_dynamics():
     notified_count = 0
     
     for up in UP_LIST:
-        bypass.log_message('INFO', "\n📱 检查 {} 的动态...".format(up['name']))
+        current_up_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        bypass.log_message('INFO', "\n📱 检查 {} 的动态... ({})".format(up['name'], current_up_time))
         
         try:
             # 显示当前本地存储状态
             recent_ids = dynamic_storage.get_recent_dynamic_ids(up['name'])
+            latest_local_id = dynamic_storage.get_latest_dynamic_id(up['name'])
             bypass.log_message('INFO', "📋 本地存储: 共 {} 条历史动态".format(len(recent_ids)))
             if recent_ids:
                 bypass.log_message('INFO', "📋 本地最新: {} (第1条)".format(recent_ids[0]))
@@ -50,8 +52,16 @@ def monitor_bilibili_dynamics():
                     bypass.log_message('INFO', "📋 历史第2条: {}".format(recent_ids[1]))
                     if len(recent_ids) > 2:
                         bypass.log_message('INFO', "📋 历史第3条: {}".format(recent_ids[2]))
+                if len(recent_ids) >= 5:
+                    bypass.log_message('INFO', "📋 历史第5条: {} (存储上限)".format(recent_ids[4]))
+                # 显示本地存储的时间信息（如果需要的话，可以通过API获取时间戳）
+                if len(recent_ids) > 0:
+                    bypass.log_message('INFO', "📋 本地存储包含时间序列信息")
+            else:
+                bypass.log_message('INFO', "📋 本地存储: 暂无历史记录 (将记录新的动态时间)")
             
             # 获取UP主最新动态，传入uid和name
+            bypass.log_message('INFO', "🔍 开始获取最新动态...")
             dynamic = get_up_latest_dynamic(uid=up['uid'], up_name=up['name'])
             
             # 解析动态信息

@@ -13,7 +13,7 @@ tail -f /home/cloud/cron_logs.log
 chmod +x /home/cloud/Bilibili_dynamic_push.py
 chmod +rwx /home/cloud/latest_dynamic_ids.json
 # 测试脚本是否能正常运行（重要！先手动执行一次，确保没有报错）
-python3.11 /home/cloud/Bilibili_dynamic_push.py  # 用你实际的Python解释器路径
+python3.11 /home/cloud/Bilibili_dynamic_push.py
 crontab -e
 # 每两分钟运行一次脚本，只在周一到周五的9点到16点，并将输出日志保存到cron_logs.log
 */2 9-16 * * 1-5 /usr/local/bin/python3.11 /home/cloud/Bilibili_dynamic_push.py >> /home/cloud/cron_logs.log 2>&1

@@ -59,6 +59,15 @@ def send_wechat_notification(up_name, dynamic_info, bypass=None):
         
         # 格式化时间 - 处理None情况
         timestamp = dynamic_info.get("timestamp")
+        # 确保timestamp是整数类型
+        if timestamp:
+            if isinstance(timestamp, str) and timestamp.isdigit():
+                timestamp = int(timestamp)
+            elif isinstance(timestamp, (int, float)):
+                pass  # 已经是数字类型
+            else:
+                timestamp = None
+        
         pub_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S') if timestamp else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         dynamic_url = dynamic_info.get('url', '')
         

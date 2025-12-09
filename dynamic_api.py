@@ -3,6 +3,7 @@ import time
 import random
 import requests
 import gzip
+import json
 from api_bypass import APIRestrictionBypass
 from latest_dynamic_storage import storage as dynamic_storage
 from datetime import datetime
@@ -443,6 +444,11 @@ def get_up_latest_dynamic_info(uid, up_name):
                     try:
                         dynamic_id = item.get('id_str', '')
                         pub_ts = item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
+                        # 确保 pub_ts 是整数类型
+                        if pub_ts and str(pub_ts).isdigit():
+                            pub_ts = int(pub_ts)
+                        elif pub_ts:
+                            pub_ts = 0
                         if dynamic_id and pub_ts:
                             recent_dynamics.append({
                                 'id': dynamic_id,
@@ -469,6 +475,17 @@ def get_up_latest_dynamic_info(uid, up_name):
                     first_ts = first_item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
                     second_ts = second_item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
                     
+                    # 确保时间戳是整数类型
+                    if first_ts and str(first_ts).isdigit():
+                        first_ts = int(first_ts)
+                    elif first_ts:
+                        first_ts = 0
+                        
+                    if second_ts and str(second_ts).isdigit():
+                        second_ts = int(second_ts)
+                    elif second_ts:
+                        second_ts = 0
+                    
                     bypass.log_message('INFO', "比较两条动态的时间戳:")
                     bypass.log_message('INFO', "  第一条动态时间戳: {} ({}))".format(first_ts, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(first_ts)) if first_ts else '未知'))
                     bypass.log_message('INFO', "  第二条动态时间戳: {} ({}))".format(second_ts, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(second_ts)) if second_ts else '未知'))
@@ -488,6 +505,13 @@ def get_up_latest_dynamic_info(uid, up_name):
                 dynamic_id = latest_item.get('id_str', '')
                 pub_time = latest_item.get('modules', {}).get('module_author', {}).get('pub_time', '')
                 pub_ts = latest_item.get('modules', {}).get('module_author', {}).get('pub_ts', 0)
+                
+                # 确保 pub_ts 是整数类型
+                if pub_ts and str(pub_ts).isdigit():
+                    pub_ts = int(pub_ts)
+                elif pub_ts:
+                    pub_ts = 0
+                    
                 dynamic_type = latest_item.get('type', '')
                 
                 # 获取主要类型和内容
@@ -679,15 +703,33 @@ def push_latest_item(latest_item, up_name, bypass):
         # 构建推送内容
         content = f"【{latest_item['title']}】\n视频AV号: {latest_item['aid']}\n发布时间: {latest_item['pub_time']}\n时长: {latest_item['length']}\n视频链接: {latest_item['url']}"
         
-        # 更新存储的动态ID
-        dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['timestamp']))
+        # 更新存储的动态ID，传递时间戳信息
+        video_timestamp = latest_item['timestamp']
+        if video_timestamp:
+            video_time = datetime.fromtimestamp(video_timestamp)
+            formatted_time = video_time.strftime('%Y-%m-%d %H:%M:%S')
+            bypass.log_message('INFO', "📅 记录视频发布时间: {}".format(formatted_time))
+            bypass.log_message('INFO', f"📅 时间戳: {video_timestamp} (Unix时间)")
+            dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], video_timestamp)
+        else:
+            # 即使没有时间信息，也要记录动态ID
+            dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'])
         
         # 批量更新最近5条动态ID（用于删除场景判断）
         if latest_item and 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
             bypass.log_message('INFO', "批量更新最近动态ID列表:")
             for dyn in latest_item['recent_dynamics']:
                 if dyn and dyn.get('id') != latest_item['id']:  # 跳过已经更新的最新动态
-                    dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
+                    pub_ts = dyn.get('pub_ts', 0)
+                    # 确保 pub_ts 是整数类型
+                    if pub_ts and str(pub_ts).isdigit():
+                        pub_ts = int(pub_ts)
+                        dyn_time = datetime.fromtimestamp(pub_ts)
+                        bypass.log_message('INFO', "  📅 历史动态时间: {} (ID: {})".format(
+                            dyn_time.strftime('%Y-%m-%d %H:%M:%S'), dyn['id']))
+                    elif pub_ts:
+                        pub_ts = 0
+                    dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(pub_ts))
         
         if TEST_MODE:
             bypass.log_message('INFO', f"[测试模式] 准备推送视频: {content}")
@@ -727,15 +769,34 @@ def push_latest_item(latest_item, up_name, bypass):
             latest_item['pub_time']
         )
         
-        # 更新存储的动态ID
-        dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], datetime.fromtimestamp(latest_item['pub_ts']))
+        # 更新存储的动态ID，传递时间戳信息
+        publish_time = latest_item['pub_ts']
+        if publish_time:
+            # 将时间戳转换为可读格式
+            dynamic_time = datetime.fromtimestamp(publish_time)
+            formatted_time = dynamic_time.strftime('%Y-%m-%d %H:%M:%S')
+            bypass.log_message('INFO', f"📅 记录动态发布时间: {formatted_time}")
+            bypass.log_message('INFO', f"📅 时间戳: {publish_time} (Unix时间)")
+            dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'], publish_time)
+        else:
+            # 即使没有时间信息，也要记录动态ID
+            dynamic_storage.update_latest_dynamic_id(up_name, latest_item['id'])
         
         # 批量更新最近5条动态ID（用于删除场景判断）
         if latest_item and 'recent_dynamics' in latest_item and latest_item['recent_dynamics']:
             bypass.log_message('INFO', "批量更新最近动态ID列表:")
             for dyn in latest_item['recent_dynamics']:
                 if dyn and dyn.get('id') != latest_item['id']:  # 跳过已经更新的最新动态
-                    dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(dyn['pub_ts']))
+                    pub_ts = dyn.get('pub_ts', 0)
+                    # 确保 pub_ts 是整数类型
+                    if pub_ts and str(pub_ts).isdigit():
+                        pub_ts = int(pub_ts)
+                        dyn_time = datetime.fromtimestamp(pub_ts)
+                        bypass.log_message('INFO', "  📅 历史动态时间: {} (ID: {})".format(
+                            dyn_time.strftime('%Y-%m-%d %H:%M:%S'), dyn['id']))
+                    elif pub_ts:
+                        pub_ts = 0
+                    dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(pub_ts))
         
         if TEST_MODE:
             bypass.log_message('INFO', "[测试模式] 准备推送内容: {}".format(content))
@@ -771,17 +832,37 @@ def get_up_latest_dynamic(uid=None, up_name=None):
     # 日志系统已在主函数初始化，这里不再重复初始化
     # bypass.setup_logger(log_level='INFO', enable_console=True)
     
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     bypass.log_message('INFO', "=== 获取UP主 {} 最新动态 ===".format(up_name))
-    bypass.log_message('INFO', "用户UID: {}".format(uid))
+    bypass.log_message('INFO', "用户UID: {}, 检查时间: {}".format(uid, current_time))
+    
+    # 获取本地存储的最新动态信息
+    latest_local_id = dynamic_storage.get_latest_dynamic_id(up_name)
+    if latest_local_id:
+        recent_ids = dynamic_storage.get_recent_dynamic_ids(up_name)
+        bypass.log_message('INFO', "本地存储信息: 最新动态ID={}, 历史动态数量={}".format(
+            latest_local_id, len(recent_ids)
+        ))
+    else:
+        bypass.log_message('INFO', "本地存储: 该UP主暂无历史动态记录")
     
     # 获取最新动态信息（不直接推送，只返回信息）
-    bypass.log_message('INFO', "获取最新动态信息...")
+    bypass.log_message('INFO', "开始获取最新动态信息...")
     dynamic_info = get_up_latest_dynamic_info(uid, up_name)
     
     if dynamic_info:
+        # 显示获取到的动态时间信息
+        dynamic_time = datetime.fromtimestamp(dynamic_info['pub_ts']).strftime('%Y-%m-%d %H:%M:%S')
+        bypass.log_message('INFO', "获取到新动态: ID={}, 发布时间={}, 内容预览={}".format(
+            dynamic_info['id'],
+            dynamic_time,
+            dynamic_info['text_content'][:30] + '...' if len(dynamic_info['text_content']) > 30 else dynamic_info['text_content']
+        ))
+        
         # 推送最新的动态
         result = push_latest_item(dynamic_info, up_name, bypass)
         return result if result else "没有新的动态需要推送"
     else:
-        bypass.log_message('INFO', "没有新的动态需要推送")
+        check_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        bypass.log_message('INFO', "没有新的动态需要推送 (检查时间: {})".format(check_time))
         return "没有新的动态需要推送"
