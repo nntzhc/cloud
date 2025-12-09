@@ -696,6 +696,23 @@ def push_latest_item(latest_item, up_name, bypass):
     """推送最新的项目"""
     bypass.log_message('INFO', "=== 准备推送最新内容 ===")
     
+    # 关键修复：在这里也要检查是否为新动态，避免重复推送
+    dynamic_id = latest_item.get('id') if latest_item else None
+    is_new_dynamic = True
+    if dynamic_id:
+        is_new_dynamic = dynamic_storage.is_new_dynamic(up_name, dynamic_id)
+        bypass.log_message('INFO', "🔍 重复检查: 动态ID {} - {}".format(
+            dynamic_id, "新动态" if is_new_dynamic else "已存在动态"
+        ))
+        
+        if not is_new_dynamic:
+            bypass.log_message('INFO', "❌ 动态已推送过，更新时间戳但不重复推送")
+            # 即使是已存在的动态，也更新时间戳信息
+            publish_time = latest_item.get('pub_ts') or latest_item.get('timestamp')
+            if publish_time:
+                dynamic_storage.update_latest_dynamic_id(up_name, dynamic_id, publish_time)
+            return "动态已存在，未重复推送"
+    
     if latest_item and latest_item.get('type') == 'video':
         # 推送视频
         bypass.log_message('INFO', "准备推送视频: {}".format(latest_item['title']))
@@ -732,9 +749,13 @@ def push_latest_item(latest_item, up_name, bypass):
                     dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(pub_ts))
         
         if TEST_MODE:
-            bypass.log_message('INFO', f"[测试模式] 准备推送视频: {content}")
-            return f"测试模式：找到新视频({latest_item['title']})，消息发送已屏蔽"
-        else:
+            if is_new_dynamic:
+                bypass.log_message('INFO', f"[测试模式] 准备推送视频: {content}")
+                return f"测试模式：找到新视频({latest_item['title']})，消息发送已屏蔽"
+            else:
+                bypass.log_message('INFO', f"[测试模式] 视频已存在: {latest_item['title']}")
+                return f"测试模式：视频已存在({latest_item['title']})，消息发送已屏蔽"
+        elif is_new_dynamic:
             # 构建视频信息
             video_info = {
                 'dynamic_id': latest_item['bvid'],
@@ -757,6 +778,10 @@ def push_latest_item(latest_item, up_name, bypass):
                 return f"成功推送新视频: {latest_item['title']}"
             else:
                 return f"推送失败：新视频: {latest_item['title']}"
+        else:
+            # 非新动态，不发送通知
+            bypass.log_message('INFO', f"视频已存在，不重复推送: {latest_item['title']}")
+            return f"视频已存在，未重复推送: {latest_item['title']}"
     
     elif latest_item and latest_item.get('type') == 'dynamic':  # dynamic
         # 推送动态
@@ -799,9 +824,13 @@ def push_latest_item(latest_item, up_name, bypass):
                     dynamic_storage.update_latest_dynamic_id(up_name, dyn['id'], datetime.fromtimestamp(pub_ts))
         
         if TEST_MODE:
-            bypass.log_message('INFO', "[测试模式] 准备推送内容: {}".format(content))
-            return "测试模式：找到新动态(ID: {})，消息发送已屏蔽".format(latest_item['id'])
-        else:
+            if is_new_dynamic:
+                bypass.log_message('INFO', "[测试模式] 准备推送内容: {}".format(content))
+                return "测试模式：找到新动态(ID: {})，消息发送已屏蔽".format(latest_item['id'])
+            else:
+                bypass.log_message('INFO', "[测试模式] 动态已存在: ID={}".format(latest_item['id']))
+                return "测试模式：动态已存在(ID: {})，消息发送已屏蔽".format(latest_item['id'])
+        elif is_new_dynamic:
             # 构建动态信息
             actual_content = latest_item['text_content'].strip() if latest_item['text_content'] else '新动态'
             dynamic_info = {
@@ -820,6 +849,10 @@ def push_latest_item(latest_item, up_name, bypass):
                 return "成功推送新动态(ID: {})".format(latest_item['id'])
             else:
                 return "推送失败：新动态(ID: {})".format(latest_item['id'])
+        else:
+            # 非新动态，不发送通知
+            bypass.log_message('INFO', f"动态已存在，不重复推送: ID={latest_item['id']}")
+            return f"动态已存在，未重复推送: ID={latest_item['id']}"
 
 def get_up_latest_dynamic(uid=None, up_name=None):
     """获取UP主最新动态（包括视频、图文、专栏等）"""
