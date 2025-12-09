@@ -1,7 +1,7 @@
 测试：python3.11 /home/cloud/Bilibili_dynamic_push.py
 
 更新脚本：
-cd ../home
+cd /home
 rm -rf cloud
 git clone git@github.com:nntzhc/cloud.git
 
