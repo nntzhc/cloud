@@ -10,6 +10,92 @@ from datetime import datetime
 from config import TEST_MODE
 from push_notification import send_wechat_notification
 
+def _parse_api_response(data, bypass):
+    """
+    改进的API响应解析函数 - 专门用于提取动态数据
+    
+    Args:
+        data: API响应数据
+        bypass: 日志记录器
+    
+    Returns:
+        list: 动态数据列表，失败返回空列表
+    """
+    try:
+        # 检查响应状态
+        code = data.get('code', -1)
+        if code != 0:
+            bypass.log_message('WARNING', f"API返回错误码: {code}")
+            return []
+        
+        # 🔍 多层次数据结构检查
+        items = []
+        data_content = data.get('data', {})
+        
+        if not data_content:
+            bypass.log_message('WARNING', "API响应中data字段为空")
+            return []
+        
+        # 记录原始数据结构用于调试
+        bypass.log_message('DEBUG', f"数据结构类型: {type(data_content)}")
+        if isinstance(data_content, dict):
+            bypass.log_message('DEBUG', f"data字段包含的键: {list(data_content.keys())}")
+        
+        # 方法1: 直接检查items字段
+        if 'items' in data_content:
+            items = data_content['items']
+            bypass.log_message('DEBUG', f"找到items字段，类型: {type(items)}")
+        
+        # 方法2: 检查cards字段
+        if not items and 'cards' in data_content:
+            items = data_content['cards']
+            bypass.log_message('DEBUG', f"找到cards字段，类型: {type(items)}")
+        
+        # 方法3: 检查list字段
+        if not items and 'list' in data_content:
+            items = data_content['list']
+            bypass.log_message('DEBUG', f"找到list字段，类型: {type(items)}")
+        
+        # 方法4: 检查更深层的数据结构
+        if not items and isinstance(data_content, dict):
+            for key, value in data_content.items():
+                if isinstance(value, list) and len(value) > 0:
+                    items = value
+                    bypass.log_message('DEBUG', f"在深层结构中找到数据: {key}")
+                    break
+        
+        # 确保items是列表类型
+        if items is None:
+            items = []
+        
+        # 数据验证
+        if not isinstance(items, list):
+            bypass.log_message('WARNING', f"items不是列表类型，而是: {type(items)}")
+            items = []
+        
+        # 记录最终结果
+        bypass.log_message('INFO', f"解析完成，获取到 {len(items)} 条动态")
+        
+        # 如果数据为空，记录详细信息用于调试
+        if len(items) == 0:
+            bypass.log_message('WARNING', "API返回成功但动态数据为空，可能原因:")
+            bypass.log_message('WARNING', "  1. UP主确实没有新动态")
+            bypass.log_message('WARNING', "  2. 数据结构发生变化")
+            bypass.log_message('WARNING', "  3. 权限或隐私设置限制")
+            bypass.log_message('WARNING', "  4. 风控过滤了数据")
+            
+            # 额外调试信息：打印更多数据结构细节
+            if isinstance(data_content, dict):
+                for key, value in data_content.items():
+                    if value is not None:
+                        bypass.log_message('DEBUG', f"data.{key}: {type(value)} = {str(value)[:100]}")
+        
+        return items
+        
+    except Exception as e:
+        bypass.log_message('ERROR', f"解析API响应失败: {e}")
+        return []
+
 def get_user_dynamics(uid, cookie_string=None, use_bypass=True):
     """
     获取用户动态（集成API风控绕过功能）
@@ -65,13 +151,23 @@ def get_user_dynamics(uid, cookie_string=None, use_bypass=True):
                 
                 if data and data.get('code') == 0:
                     bypass.log_message('INFO', f"端点 {endpoint['name']} 请求成功")
-                    bypass.request_stats['last_successful_endpoint'] = endpoint['name']
                     
-                    # 🔍 增强调试：打印响应数据的前500字符
-                    if data:
+                    # 🔍 改进的数据解析和验证
+                    items = _parse_api_response(data, bypass)
+                    
+                    # 只有当实际获取到动态数据时才返回
+                    if items and len(items) > 0:
+                        bypass.log_message('INFO', f"端点 {endpoint['name']} 成功获取到 {len(items)} 条动态")
+                        bypass.request_stats['last_successful_endpoint'] = endpoint['name']
+                        
+                        # 🔍 增强调试：打印响应数据的前500字符
                         bypass.log_message('DEBUG', "API响应数据预览: {}".format(json.dumps(data, ensure_ascii=False)[:500]))
-                    
-                    return data
+                        
+                        return data
+                    else:
+                        bypass.log_message('WARNING', f"端点 {endpoint['name']} 返回成功但无动态数据，继续尝试其他端点...")
+                        # 继续尝试下一个端点
+                        continue
                 elif data and bypass.is_rate_limited(data):
                     bypass.log_message('WARNING', f"端点 {endpoint['name']} 触发风控，尝试下一个端点...")
                     continue
@@ -138,6 +234,9 @@ def get_user_dynamics(uid, cookie_string=None, use_bypass=True):
             
             data = json.loads(content.decode('utf-8'))
             
+            # 🔍 使用改进的数据解析函数验证返回的数据
+            items = _parse_api_response(data, bypass)
+            
             # 检查返回状态
             if data.get('code') == -352:
                 bypass.log_message('WARNING', f"用户 {uid} 遇到风控限制 (-352)")
@@ -146,8 +245,13 @@ def get_user_dynamics(uid, cookie_string=None, use_bypass=True):
                 bypass.log_message('WARNING', f"获取用户 {uid} 动态失败: {data.get('message', '未知错误')}")
                 return None
             
-            bypass.log_message('INFO', f"传统模式获取用户 {uid} 动态成功")
-            return data
+            # 只有当实际获取到动态数据时才返回成功
+            if items and len(items) > 0:
+                bypass.log_message('INFO', f"传统模式获取用户 {uid} 动态成功，获取到 {len(items)} 条动态")
+                return data
+            else:
+                bypass.log_message('WARNING', f"传统模式获取用户 {uid} 动态成功但无数据")
+                return None
             
         except requests.exceptions.RequestException as e:
             bypass.log_message('ERROR', f"获取用户 {uid} 动态网络错误: {e}")
@@ -393,25 +497,11 @@ def get_up_latest_dynamic_info(uid, up_name):
             bypass.log_message('ERROR', "获取动态失败")
             return None
         
-        # 解析polymer API返回的数据
+        # 🔍 使用改进的数据解析函数
         bypass.log_message('INFO', "正在解析polymer API数据...")
+        items = _parse_api_response(data, bypass)
         
-        # 检查多种可能的数据结构
-        items = []
-        if 'data' in data and isinstance(data['data'], dict):
-            items = data['data'].get('items', [])
-            if not items:
-                items = data['data'].get('list', [])
-            if not items:
-                items = data['data'].get('cards', [])
-        elif 'data' in data and isinstance(data['data'], list):
-            items = data['data']
-        
-        # 确保items是列表类型
-        if items is None:
-            items = []
-        
-        bypass.log_message('INFO', "polymer API获取到 {} 条动态".format(len(items) if items else 0))
+        bypass.log_message('INFO', "polymer API获取到 {} 条动态".format(len(items)))
         
         # 检查响应码
         code = data.get('code', -1)
